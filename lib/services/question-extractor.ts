@@ -14,6 +14,7 @@ const AnswerOptionSchema = z.object({
   isCorrect: z
     .boolean()
     .nullable()
+    .optional()
     .describe("Whether this is the correct answer, null if unknown"),
 });
 
@@ -28,25 +29,32 @@ const QuestionSchema = z.object({
   marks: z
     .number()
     .nullable()
+    .optional()
     .describe("The number of marks for this question"),
   section: z
     .string()
     .nullable()
+    .optional()
     .describe("The section this question belongs to"),
   instructions: z
     .string()
     .nullable()
+    .optional()
     .describe("Any special instructions for this question"),
   options: z
     .array(AnswerOptionSchema)
     .nullable()
+    .optional()
     .describe("Answer options for MCQ questions"),
   relatedImageIds: z
     .array(z.string())
+    .optional()
+    .default([])
     .describe("IDs of images related to this question"),
   expectedAnswer: z
     .string()
     .nullable()
+    .optional()
     .describe("The expected answer if visible in the document"),
 });
 
@@ -54,11 +62,12 @@ const ExamExtractionSchema = z.object({
   subject: z
     .string()
     .nullable()
+    .optional()
     .describe("The subject of the exam (Math, English, Chinese, etc.)"),
-  grade: z.string().nullable().describe("The grade level (e.g., 'Primary 4')"),
-  schoolName: z.string().nullable().describe("The school name if visible"),
-  totalMarks: z.number().nullable().describe("The total marks for the exam"),
-  questions: z.array(QuestionSchema).describe("All questions in the exam"),
+  grade: z.string().nullable().optional().describe("The grade level (e.g., 'Primary 4')"),
+  schoolName: z.string().nullable().optional().describe("The school name if visible"),
+  totalMarks: z.number().nullable().optional().describe("The total marks for the exam"),
+  questions: z.array(QuestionSchema).default([]).describe("All questions in the exam"),
 });
 
 export type ExtractedExam = z.infer<typeof ExamExtractionSchema>;
@@ -76,7 +85,7 @@ export async function extractQuestionsWithLlm(
     .join("\n\n");
 
   const { output } = await generateText({
-    model: groq("llama-3.3-70b-versatile"),
+    model: groq("openai/gpt-oss-120b"),
     output: Output.object({ schema: ExamExtractionSchema }),
     prompt: `You are an expert at extracting structured information from exam papers.
 
