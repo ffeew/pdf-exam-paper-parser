@@ -8,12 +8,17 @@ const envSchema = z.object({
 
   // Authentication (better-auth)
   BETTER_AUTH_SECRET: z.string().min(1),
+  BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
 
   // Cloudflare R2 Storage
   CLOUDFLARE_ACCOUNT_ID: z.string().min(1),
   CLOUDFLARE_R2_ACCESS_KEY_ID: z.string().min(1),
   CLOUDFLARE_R2_SECRET_ACCESS_KEY: z.string().min(1),
   CLOUDFLARE_R2_BUCKET_NAME: z.string().min(1),
+
+  // AI Services
+  MISTRAL_API_KEY: z.string().min(1),
+  GROQ_API_KEY: z.string().min(1),
 
   // Optional: Node environment
   NODE_ENV: z

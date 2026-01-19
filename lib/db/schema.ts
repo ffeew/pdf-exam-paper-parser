@@ -1,10 +1,18 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
+// Re-export auth tables
+export { user, session, account, verification } from "./auth-schema";
+import { user } from "./auth-schema";
+
 // Exams table
 export const exams = sqliteTable("exams", {
   id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   filename: text("filename").notNull(),
+  pdfKey: text("pdf_key"), // R2 storage key for the uploaded PDF
   subject: text("subject"),
   grade: text("grade"),
   schoolName: text("school_name"),
