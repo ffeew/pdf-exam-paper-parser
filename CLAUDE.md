@@ -41,6 +41,9 @@ Full-stack application for parsing PDF exam papers into interactive web-based ex
 - **AI/OCR**: Mistral OCR (@mistralai/mistralai), Vercel AI SDK
 - **Validation**: Zod
 - **Styling**: Tailwind CSS
+- **Database**: Drizzle ORM + Turso (LibSQL)
+- **Authentication**: better-auth
+- **Storage**: Cloudflare R2 (S3-compatible, presigned URLs)
 
 ## Architecture: Validator-Service-Controller Pattern
 
@@ -53,6 +56,17 @@ app/
       controller.ts   # Request/response handling, calls service
       service.ts      # Business logic, external API calls
       validator.ts    # Zod schemas + inferred types (models)
+lib/
+  config/
+    env.ts            # Zod-validated environment variables
+  db/
+    index.ts          # Database client initialization
+    schema.ts         # Drizzle table definitions and relations
+  storage/
+    index.ts          # Barrel exports
+    r2-client.ts      # R2 client initialization
+    upload.ts         # Upload/download utilities (presigned URLs)
+    utils.ts          # File helpers
 components/           # shadcn/ui and custom components
 hooks/                # React Query hooks
 ```
@@ -85,10 +99,13 @@ hooks/                # React Query hooks
 - `design-considerations.md` - Tracks architectural and technology decisions
 
 ## Commands
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run lint` - Run ESLint
-- `npm run typecheck` - Run TypeScript type checking
+- `bun run dev` - Start development server
+- `bun run build` - Build for production
+- `bun run lint` - Run ESLint
+- `bun run typecheck` - Run TypeScript type checking
+- `bun run db:push` - Push schema changes to database
+- `bun run db:studio` - Open Drizzle Studio
+- `bun run db:generate` - Generate migrations
 
 ## Development Workflow
-**Always run `npm run typecheck` after completing edits** to ensure there are no type errors.
+**Always run `bun run typecheck` after completing edits** to ensure there are no type errors.
