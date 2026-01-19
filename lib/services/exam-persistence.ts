@@ -69,11 +69,10 @@ export async function saveExtractedData(
   // Upload extracted images to R2 and get their keys + page numbers
   const imageMap = await uploadExtractedImages(examId, ocrResult);
 
-  // Build a map of pageNumber → questionIds for page-based image association
-  const pageToQuestionIds = new Map<number, string[]>();
-  const questionIdToPage = new Map<string, number>();
+  // Map from extraction index to database questionId
+  const questionIdByIndex = new Map<number, string>();
 
-  // Insert questions and build page mappings
+  // Insert questions and track their IDs
   for (let i = 0; i < extracted.questions.length; i++) {
     const q = extracted.questions[i];
     const questionId = randomUUID();
@@ -93,13 +92,8 @@ export async function saveExtractedData(
       createdAt: now,
     });
 
-    // Track page → question mapping
-    if (q.pageNumber) {
-      const existing = pageToQuestionIds.get(q.pageNumber) || [];
-      existing.push(questionId);
-      pageToQuestionIds.set(q.pageNumber, existing);
-      questionIdToPage.set(questionId, q.pageNumber);
-    }
+    // Store mapping for image association
+    questionIdByIndex.set(i, questionId);
 
     // Insert answer options for MCQ
     if (q.questionType === "mcq" && q.options) {
@@ -117,35 +111,45 @@ export async function saveExtractedData(
     }
   }
 
-  // Associate images with questions by page number
-  for (const [imageId, uploadedImage] of imageMap) {
-    const { key: imageKey, pageNumber } = uploadedImage;
-    const questionsOnPage = pageToQuestionIds.get(pageNumber);
+  // Associate images with questions using relatedImageIds from LLM extraction
+  const associatedImageIds = new Set<string>();
 
-    if (questionsOnPage && questionsOnPage.length > 0) {
-      // Link image to the first question on that page
-      // (Could also duplicate to all questions on the page if preferred)
-      const questionId = questionsOnPage[0];
+  for (let i = 0; i < extracted.questions.length; i++) {
+    const q = extracted.questions[i];
+    const questionId = questionIdByIndex.get(i)!;
+
+    // Link each related image to this question
+    for (let orderIdx = 0; orderIdx < q.relatedImageIds.length; orderIdx++) {
+      const imageId = q.relatedImageIds[orderIdx];
+      const uploadedImage = imageMap.get(imageId);
+      if (!uploadedImage) continue;
+
       await db.insert(images).values({
         id: randomUUID(),
         examId,
         questionId,
-        imageUrl: imageKey,
+        imageUrl: uploadedImage.key,
         imageType: "question_diagram",
-        orderIndex: 0,
+        orderIndex: orderIdx,
         createdAt: new Date(),
       });
-    } else {
-      // No questions on this page - save as exam-level image
-      await db.insert(images).values({
-        id: randomUUID(),
-        examId,
-        questionId: null,
-        imageUrl: imageKey,
-        imageType: "exam_content",
-        orderIndex: 0,
-        createdAt: new Date(),
-      });
+      associatedImageIds.add(imageId);
     }
+  }
+
+  // Remaining images (not claimed by any question) become exam-level images
+  let examImageOrder = 0;
+  for (const [imageId, uploadedImage] of imageMap) {
+    if (associatedImageIds.has(imageId)) continue;
+
+    await db.insert(images).values({
+      id: randomUUID(),
+      examId,
+      questionId: null,
+      imageUrl: uploadedImage.key,
+      imageType: "exam_content",
+      orderIndex: examImageOrder++,
+      createdAt: new Date(),
+    });
   }
 }

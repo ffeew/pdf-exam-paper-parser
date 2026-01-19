@@ -100,6 +100,13 @@ For each question:
 6. Identify the section if the exam is divided into sections (Section A, B, etc.)
 7. For MCQ, extract all options with their labels (A, B, C, D)
 8. Extract any special instructions for the question
+9. **CRITICAL - Link images to questions**: The markdown contains image references like ![img-0.jpeg](img-0.jpeg).
+   - Look for these image references in the markdown text
+   - If an image appears within or immediately after a question's text, add its ID to the relatedImageIds array
+   - The image ID is the filename part (e.g., "img-0.jpeg", "img-1.jpeg")
+   - Only include images that are diagrams, figures, or visual elements relevant to answering the question
+   - Do NOT include images that are clearly logos, watermarks, headers, footers, or decorative elements
+   - If no images are related to a question, use an empty array []
 
 Also extract metadata about the exam:
 - Subject (Math, English, Chinese, Science, etc.)
