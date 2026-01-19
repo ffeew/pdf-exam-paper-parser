@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 function ExamSkeleton() {
   return (
-    <div className="container mx-auto py-8 max-w-4xl space-y-6">
+    <div className="p-8 max-w-4xl mx-auto space-y-6">
       <Skeleton className="h-32 w-full" />
       <Skeleton className="h-48 w-full" />
       <Skeleton className="h-48 w-full" />
@@ -23,7 +23,7 @@ function ExamSkeleton() {
 
 function ProcessingState() {
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
+    <div className="p-8 max-w-4xl mx-auto">
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
@@ -41,7 +41,7 @@ function ProcessingState() {
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
+    <div className="p-8 max-w-4xl mx-auto">
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
           <div className="text-4xl">Error</div>
@@ -76,7 +76,7 @@ export default function ExamPage({
 
   if (error) {
     return (
-      <div className="container mx-auto py-8 max-w-4xl">
+      <div className="p-8 max-w-4xl mx-auto">
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-destructive">Failed to load exam</p>
@@ -91,7 +91,7 @@ export default function ExamPage({
 
   if (!exam) {
     return (
-      <div className="container mx-auto py-8 max-w-4xl">
+      <div className="p-8 max-w-4xl mx-auto">
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-muted-foreground">Exam not found</p>
@@ -110,7 +110,7 @@ export default function ExamPage({
   }
 
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
+    <div className="p-8 max-w-4xl mx-auto">
       <ExamHeader exam={exam} />
 
       {/* Exam-level images (not linked to specific questions) */}

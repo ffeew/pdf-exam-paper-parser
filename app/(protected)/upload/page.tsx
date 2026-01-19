@@ -103,7 +103,7 @@ export default function UploadPage() {
 
 	if (isSessionLoading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
+			<div className="flex items-center justify-center h-full">
 				<p className="text-muted-foreground">Loading...</p>
 			</div>
 		);
@@ -113,8 +113,8 @@ export default function UploadPage() {
 	const isUploadingStage = stage === "uploading" || isUploading;
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-muted/50 p-4">
-			<Card className="w-full max-w-xl">
+		<div className="p-8 max-w-xl mx-auto">
+			<Card>
 				<CardHeader>
 					<CardTitle>Upload Exam Paper</CardTitle>
 					<CardDescription>
