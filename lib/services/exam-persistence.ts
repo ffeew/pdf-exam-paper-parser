@@ -16,11 +16,16 @@ function getExtension(mimeType: string): string {
   return map[mimeType] || "png";
 }
 
+interface UploadedImage {
+  key: string;
+  pageNumber: number;
+}
+
 async function uploadExtractedImages(
   examId: string,
   ocrResult: OcrResult
-): Promise<Map<string, string>> {
-  const imageKeyMap = new Map<string, string>();
+): Promise<Map<string, UploadedImage>> {
+  const imageMap = new Map<string, UploadedImage>();
 
   for (const page of ocrResult.pages) {
     for (const img of page.images) {
@@ -33,12 +38,15 @@ async function uploadExtractedImages(
 
       await uploadBuffer(key, buffer, img.mimeType);
 
-      // Store the key (we'll generate download URLs on demand)
-      imageKeyMap.set(img.id, key);
+      // Store both the key and page number for later association
+      imageMap.set(img.id, {
+        key,
+        pageNumber: img.pageNumber,
+      });
     }
   }
 
-  return imageKeyMap;
+  return imageMap;
 }
 
 export async function saveExtractedData(
@@ -58,10 +66,14 @@ export async function saveExtractedData(
     })
     .where(eq(exams.id, examId));
 
-  // Upload extracted images to R2 and get their keys
-  const imageKeyMap = await uploadExtractedImages(examId, ocrResult);
+  // Upload extracted images to R2 and get their keys + page numbers
+  const imageMap = await uploadExtractedImages(examId, ocrResult);
 
-  // Insert questions
+  // Build a map of pageNumber → questionIds for page-based image association
+  const pageToQuestionIds = new Map<number, string[]>();
+  const questionIdToPage = new Map<string, number>();
+
+  // Insert questions and build page mappings
   for (let i = 0; i < extracted.questions.length; i++) {
     const q = extracted.questions[i];
     const questionId = randomUUID();
@@ -81,6 +93,14 @@ export async function saveExtractedData(
       createdAt: now,
     });
 
+    // Track page → question mapping
+    if (q.pageNumber) {
+      const existing = pageToQuestionIds.get(q.pageNumber) || [];
+      existing.push(questionId);
+      pageToQuestionIds.set(q.pageNumber, existing);
+      questionIdToPage.set(questionId, q.pageNumber);
+    }
+
     // Insert answer options for MCQ
     if (q.questionType === "mcq" && q.options) {
       for (let j = 0; j < q.options.length; j++) {
@@ -95,30 +115,28 @@ export async function saveExtractedData(
         });
       }
     }
-
-    // Insert images associated with this question
-    for (const imageId of q.relatedImageIds) {
-      const imageKey = imageKeyMap.get(imageId);
-      if (imageKey) {
-        await db.insert(images).values({
-          id: randomUUID(),
-          examId,
-          questionId,
-          imageUrl: imageKey, // Store the R2 key, not the full URL
-          imageType: "question_diagram",
-          orderIndex: 0,
-          createdAt: now,
-        });
-      }
-    }
   }
 
-  // Also save any images not associated with specific questions (exam-level images)
-  const usedImageIds = new Set(
-    extracted.questions.flatMap((q) => q.relatedImageIds)
-  );
-  for (const [imageId, imageKey] of imageKeyMap) {
-    if (!usedImageIds.has(imageId)) {
+  // Associate images with questions by page number
+  for (const [imageId, uploadedImage] of imageMap) {
+    const { key: imageKey, pageNumber } = uploadedImage;
+    const questionsOnPage = pageToQuestionIds.get(pageNumber);
+
+    if (questionsOnPage && questionsOnPage.length > 0) {
+      // Link image to the first question on that page
+      // (Could also duplicate to all questions on the page if preferred)
+      const questionId = questionsOnPage[0];
+      await db.insert(images).values({
+        id: randomUUID(),
+        examId,
+        questionId,
+        imageUrl: imageKey,
+        imageType: "question_diagram",
+        orderIndex: 0,
+        createdAt: new Date(),
+      });
+    } else {
+      // No questions on this page - save as exam-level image
       await db.insert(images).values({
         id: randomUUID(),
         examId,

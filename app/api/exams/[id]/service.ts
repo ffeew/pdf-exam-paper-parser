@@ -72,11 +72,15 @@ export async function getExamWithQuestions(examId: string, userId: string) {
   }
 
   const imagesByQuestion = new Map<string, typeof imagesWithUrls>();
+  const examLevelImages: typeof imagesWithUrls = [];
   for (const img of imagesWithUrls) {
     if (img.questionId) {
       const existing = imagesByQuestion.get(img.questionId) || [];
       existing.push(img);
       imagesByQuestion.set(img.questionId, existing);
+    } else {
+      // Exam-level images (not linked to any specific question)
+      examLevelImages.push(img);
     }
   }
 
@@ -114,5 +118,10 @@ export async function getExamWithQuestions(examId: string, userId: string) {
     errorMessage: exam.errorMessage,
     createdAt: exam.createdAt.toISOString(),
     questions: questionsWithDetails,
+    examImages: examLevelImages.map((img) => ({
+      id: img.id,
+      imageUrl: img.imageUrl,
+      altText: img.altText,
+    })),
   };
 }

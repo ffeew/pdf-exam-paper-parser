@@ -8,6 +8,7 @@ export interface OcrImage {
   id: string;
   base64: string;
   mimeType: string;
+  pageNumber: number;
 }
 
 export interface OcrPage {
@@ -39,11 +40,26 @@ export async function processDocumentWithOcr(
   const pages: OcrPage[] = (response.pages || []).map((page, index) => ({
     pageNumber: index + 1,
     markdown: page.markdown || "",
-    images: (page.images || []).map((img, imgIndex) => ({
-      id: `page-${index + 1}-img-${imgIndex + 1}`,
-      base64: img.imageBase64 || "",
-      mimeType: "image/png", // Default to PNG as Mistral OCR typically returns PNG
-    })),
+    images: (page.images || []).map((img) => {
+      // Mistral returns base64 with data URL prefix: "data:image/jpeg;base64,..."
+      // Strip the prefix to get just the base64 data
+      let base64Data = img.imageBase64 || "";
+      const dataUrlMatch = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+      let mimeType = "image/jpeg";
+
+      if (dataUrlMatch) {
+        mimeType = dataUrlMatch[1];
+        base64Data = dataUrlMatch[2];
+      }
+
+      return {
+        // Use Mistral's actual image ID (e.g., "img-0.jpeg")
+        id: img.id || `page-${index + 1}-img-unknown`,
+        base64: base64Data,
+        mimeType,
+        pageNumber: index + 1,
+      };
+    }),
   }));
 
   return {

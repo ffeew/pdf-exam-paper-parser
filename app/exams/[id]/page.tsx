@@ -6,8 +6,9 @@ import { useSession } from "@/lib/auth-client";
 import { useExam } from "@/hooks/use-exam";
 import { ExamHeader } from "@/components/exam/exam-header";
 import { QuestionCard } from "@/components/exam/question-card";
+import { QuestionImage } from "@/components/exam/question-image";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 function ExamSkeleton() {
   return (
@@ -111,6 +112,22 @@ export default function ExamPage({
   return (
     <div className="container mx-auto py-8 max-w-4xl">
       <ExamHeader exam={exam} />
+
+      {/* Exam-level images (not linked to specific questions) */}
+      {exam.examImages && exam.examImages.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-lg">Exam Reference Materials</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 flex-wrap">
+              {exam.examImages.map((img) => (
+                <QuestionImage key={img.id} image={img} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-6 mt-8">
         {exam.questions.map((question) => (

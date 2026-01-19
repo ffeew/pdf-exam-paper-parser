@@ -14,7 +14,6 @@ const AnswerOptionSchema = z.object({
   isCorrect: z
     .boolean()
     .nullable()
-    .optional()
     .describe("Whether this is the correct answer, null if unknown"),
 });
 
@@ -26,48 +25,43 @@ const QuestionSchema = z.object({
   questionType: z
     .enum(["mcq", "fill_blank", "short_answer", "long_answer"])
     .describe("The type of question"),
+  pageNumber: z
+    .number()
+    .describe("The page number where this question appears (1-indexed)"),
   marks: z
     .number()
     .nullable()
-    .optional()
-    .describe("The number of marks for this question"),
+    .describe("The number of marks for this question, null if not shown"),
   section: z
     .string()
     .nullable()
-    .optional()
-    .describe("The section this question belongs to"),
+    .describe("The section this question belongs to, null if none"),
   instructions: z
     .string()
     .nullable()
-    .optional()
-    .describe("Any special instructions for this question"),
+    .describe("Any special instructions for this question, null if none"),
   options: z
     .array(AnswerOptionSchema)
     .nullable()
-    .optional()
-    .describe("Answer options for MCQ questions"),
+    .describe("Answer options for MCQ questions, null for non-MCQ"),
   relatedImageIds: z
     .array(z.string())
-    .optional()
-    .default([])
-    .describe("IDs of images related to this question"),
+    .describe("IDs of images related to this question, empty array if none"),
   expectedAnswer: z
     .string()
     .nullable()
-    .optional()
-    .describe("The expected answer if visible in the document"),
+    .describe("The expected answer if visible in the document, null if not shown"),
 });
 
 const ExamExtractionSchema = z.object({
   subject: z
     .string()
     .nullable()
-    .optional()
-    .describe("The subject of the exam (Math, English, Chinese, etc.)"),
-  grade: z.string().nullable().optional().describe("The grade level (e.g., 'Primary 4')"),
-  schoolName: z.string().nullable().optional().describe("The school name if visible"),
-  totalMarks: z.number().nullable().optional().describe("The total marks for the exam"),
-  questions: z.array(QuestionSchema).default([]).describe("All questions in the exam"),
+    .describe("The subject of the exam (Math, English, Chinese, etc.), null if not found"),
+  grade: z.string().nullable().describe("The grade level (e.g., 'Primary 4'), null if not found"),
+  schoolName: z.string().nullable().describe("The school name if visible, null if not found"),
+  totalMarks: z.number().nullable().describe("The total marks for the exam, null if not found"),
+  questions: z.array(QuestionSchema).describe("All questions in the exam"),
 });
 
 export type ExtractedExam = z.infer<typeof ExamExtractionSchema>;
@@ -91,6 +85,8 @@ export async function extractQuestionsWithLlm(
 
 Analyze the following OCR output from a Singapore Primary school exam paper and extract all questions.
 
+The document is organized by pages, marked with "--- Page N ---" headers.
+
 For each question:
 1. Identify the question number (e.g., "1", "2a", "2b", "3(i)")
 2. Extract the full question text
@@ -99,10 +95,10 @@ For each question:
    - "fill_blank": Fill in the blank questions (has underlined spaces or boxes)
    - "short_answer": Questions requiring a word, number, or short phrase
    - "long_answer": Questions requiring explanation, working, or longer responses
-4. Extract marks if shown (usually in parentheses like "(2 marks)" or "[2]")
-5. Identify the section if the exam is divided into sections (Section A, B, etc.)
-6. For MCQ, extract all options with their labels (A, B, C, D)
-7. If an image is referenced near a question (like a diagram, graph, or picture), include its ID in relatedImageIds
+4. **CRITICAL: Identify the page number where the question appears** (look at the "--- Page N ---" header above the question)
+5. Extract marks if shown (usually in parentheses like "(2 marks)" or "[2]")
+6. Identify the section if the exam is divided into sections (Section A, B, etc.)
+7. For MCQ, extract all options with their labels (A, B, C, D)
 8. Extract any special instructions for the question
 
 Also extract metadata about the exam:
@@ -114,6 +110,7 @@ Also extract metadata about the exam:
 Important notes:
 - Be thorough - extract ALL questions from the document
 - Preserve the exact question numbering used in the exam
+- **Always set the pageNumber field** - this is required for linking images to questions
 - For fill-in-the-blank questions, include the blanks in the question text using underscores (e.g., "The capital of France is _____")
 - If you can't determine something, use null
 

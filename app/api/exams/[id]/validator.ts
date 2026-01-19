@@ -37,6 +37,7 @@ export const ExamWithQuestionsSchema = z.object({
   errorMessage: z.string().nullable(),
   createdAt: z.string(),
   questions: z.array(QuestionSchema),
+  examImages: z.array(QuestionImageSchema),
 });
 
 export type ExamWithQuestions = z.infer<typeof ExamWithQuestionsSchema>;
