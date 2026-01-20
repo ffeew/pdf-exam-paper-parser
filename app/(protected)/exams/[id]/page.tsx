@@ -131,6 +131,8 @@ export default function ExamPage({
 		string | null
 	>(null);
 	const [isChatPanelOpen, setIsChatPanelOpen] = useState(false);
+	const [revealedAnswers, setRevealedAnswers] = useState<Record<string, boolean>>({});
+	const [documentViewActiveTab, setDocumentViewActiveTab] = useState<"answers" | "chat">("answers");
 
 	// Create a map for quick answer lookup by questionId
 	const answersMap = useMemo(() => {
@@ -157,6 +159,29 @@ export default function ExamPage({
 		setSelectedQuestionForChat(questionNumber);
 		setIsChatPanelOpen(true);
 	};
+
+	// Handle toggling answer visibility
+	const handleToggleAnswer = useCallback((questionNumber: string) => {
+		setRevealedAnswers(prev => ({
+			...prev,
+			[questionNumber]: !prev[questionNumber],
+		}));
+	}, []);
+
+	// Handle document view tab change - keeps chat panel state in sync
+	const handleDocumentViewTabChange = useCallback((tab: "answers" | "chat") => {
+		setDocumentViewActiveTab(tab);
+		setIsChatPanelOpen(tab === "chat");
+	}, []);
+
+	// Handle view mode change with state sync
+	const handleViewModeChange = useCallback((newMode: ViewMode) => {
+		// When switching to document view, sync the active tab with chat panel state
+		if (newMode === "document" && isChatPanelOpen) {
+			setDocumentViewActiveTab("chat");
+		}
+		setViewMode(newMode);
+	}, [isChatPanelOpen]);
 
 	// Redirect to login if not authenticated
 	useEffect(() => {
@@ -214,7 +239,7 @@ export default function ExamPage({
 				{hasDocumentMarkdown && (
 					<div className="flex items-center gap-3 mt-6 mb-4 shrink-0">
 						<span className="text-sm text-muted-foreground">View:</span>
-						<ExamViewToggle view={viewMode} onViewChange={setViewMode} />
+						<ExamViewToggle view={viewMode} onViewChange={handleViewModeChange} />
 					</div>
 				)}
 
@@ -225,6 +250,12 @@ export default function ExamPage({
 							markdown={exam.documentMarkdown!}
 							questions={exam.questions}
 							sections={exam.sections}
+							selectedQuestionForChat={selectedQuestionForChat}
+							onSelectedQuestionForChatChange={setSelectedQuestionForChat}
+							activeTab={documentViewActiveTab}
+							onActiveTabChange={handleDocumentViewTabChange}
+							revealedAnswers={revealedAnswers}
+							onToggleAnswer={handleToggleAnswer}
 						/>
 					</div>
 				) : (
@@ -280,6 +311,8 @@ export default function ExamPage({
 											answersMap={answersMap}
 											onAnswerChange={handleAnswerChange}
 											onAskAI={handleAskAI}
+											revealedAnswers={revealedAnswers}
+											onToggleAnswer={handleToggleAnswer}
 										/>
 									)
 								)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,13 @@ interface AnswerSidePanelProps {
 	sections: Section[];
 	activeQuestionNumber: string | null;
 	onQuestionClick: (questionNumber: string) => void;
+	// Lifted state for sync between views
+	selectedQuestionForChat: string | null;
+	onSelectedQuestionForChatChange: (questionNumber: string | null) => void;
+	activeTab: "answers" | "chat";
+	onActiveTabChange: (tab: "answers" | "chat") => void;
+	revealedAnswers: Record<string, boolean>;
+	onToggleAnswer: (questionNumber: string) => void;
 }
 
 export function AnswerSidePanel({
@@ -27,12 +34,13 @@ export function AnswerSidePanel({
 	sections,
 	activeQuestionNumber,
 	onQuestionClick,
+	selectedQuestionForChat,
+	onSelectedQuestionForChatChange,
+	activeTab,
+	onActiveTabChange,
+	revealedAnswers,
+	onToggleAnswer,
 }: AnswerSidePanelProps) {
-	const [activeTab, setActiveTab] = useState<string>("answers");
-	const [selectedQuestionForChat, setSelectedQuestionForChat] = useState<string | null>(
-		() => questions[0]?.questionNumber ?? null
-	);
-	const [showAnswers, setShowAnswers] = useState<Record<string, boolean>>({});
 	const containerRef = useRef<HTMLDivElement>(null);
 	const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -77,16 +85,8 @@ export function AnswerSidePanel({
 
 	// Handle "Ask AI" button click on a question card
 	const handleAskAI = (questionNumber: string) => {
-		setSelectedQuestionForChat(questionNumber);
-		setActiveTab("chat");
-	};
-
-	// Toggle answer visibility for a question
-	const toggleAnswer = (questionNumber: string) => {
-		setShowAnswers((prev) => ({
-			...prev,
-			[questionNumber]: !prev[questionNumber],
-		}));
+		onSelectedQuestionForChatChange(questionNumber);
+		onActiveTabChange("chat");
 	};
 
 	// Check if question has an answer to reveal
@@ -97,7 +97,7 @@ export function AnswerSidePanel({
 	return (
 		<Tabs
 			value={activeTab}
-			onValueChange={setActiveTab}
+			onValueChange={(value) => onActiveTabChange(value as "answers" | "chat")}
 			className="h-full flex flex-col gap-0 overflow-hidden"
 		>
 			<div className="bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 z-10 border-b shrink-0">
@@ -148,7 +148,7 @@ export function AnswerSidePanel({
 									)}
 									onClick={() => {
 										onQuestionClick(question.questionNumber);
-										setSelectedQuestionForChat(question.questionNumber);
+										onSelectedQuestionForChatChange(question.questionNumber);
 									}}
 								>
 									<CardHeader className="py-2 px-3">
@@ -168,10 +168,10 @@ export function AnswerSidePanel({
 														className="h-6 px-2 text-xs"
 														onClick={(e) => {
 															e.stopPropagation();
-															toggleAnswer(question.questionNumber);
+															onToggleAnswer(question.questionNumber);
 														}}
 													>
-														{showAnswers[question.questionNumber] ? (
+														{revealedAnswers[question.questionNumber] ? (
 															<>
 																<EyeOff className="h-3 w-3 mr-1" />
 																Hide
@@ -212,7 +212,7 @@ export function AnswerSidePanel({
 											}
 										/>
 									</CardContent>
-									{showAnswers[question.questionNumber] && (
+									{revealedAnswers[question.questionNumber] && (
 										<div className="px-3 pb-2">
 											<AnswerReveal question={question} />
 										</div>
@@ -234,7 +234,7 @@ export function AnswerSidePanel({
 							examId={examId}
 							question={selectedQuestion}
 							questions={questions}
-							onQuestionChange={setSelectedQuestionForChat}
+							onQuestionChange={onSelectedQuestionForChatChange}
 							sectionName={selectedSection?.sectionName ?? null}
 							sectionInstructions={selectedSection?.instructions ?? null}
 						/>

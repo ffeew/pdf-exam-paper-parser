@@ -23,6 +23,9 @@ interface QuestionCardProps {
   savedAnswer?: UserAnswer;
   onAnswerChange?: (answerText: string | null, selectedOptionId: string | null) => void;
   onAskAI?: (questionNumber: string) => void;
+  // Optional controlled props for answer reveal
+  showAnswer?: boolean;
+  onToggleAnswer?: () => void;
 }
 
 export function QuestionCard({
@@ -31,8 +34,21 @@ export function QuestionCard({
   savedAnswer,
   onAnswerChange,
   onAskAI,
+  showAnswer: controlledShowAnswer,
+  onToggleAnswer,
 }: QuestionCardProps) {
-  const [showAnswer, setShowAnswer] = useState(false);
+  // Support both controlled and uncontrolled modes for backward compatibility
+  const [localShowAnswer, setLocalShowAnswer] = useState(false);
+  const isControlled = controlledShowAnswer !== undefined;
+  const showAnswer = isControlled ? controlledShowAnswer : localShowAnswer;
+
+  const handleToggleAnswer = () => {
+    if (onToggleAnswer) {
+      onToggleAnswer();
+    } else {
+      setLocalShowAnswer(!localShowAnswer);
+    }
+  };
 
   // Local state for text inputs - initialized from savedAnswer on mount
   // Key prop on parent ensures this remounts when question changes
@@ -93,7 +109,7 @@ export function QuestionCard({
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2 text-xs"
-                onClick={() => setShowAnswer(!showAnswer)}
+                onClick={handleToggleAnswer}
               >
                 {showAnswer ? (
                   <>

@@ -1,11 +1,11 @@
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 import { createGroq } from "@ai-sdk/groq";
 import { env } from "@/lib/config/env";
 import { db } from "@/lib/db";
 import { userAnswers, questions } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { verifyExamOwnership } from "@/lib/services/authorization";
-import type { AIModel, GradeResult, LLMGradeOutput } from "./validator";
+import type { AIModel, GradeResult } from "./validator";
 import { LLMGradeOutputSchema } from "./validator";
 
 const groq = createGroq({
@@ -18,31 +18,15 @@ const MODEL_MAP: Record<AIModel, string> = {
   "kimi-k2": "moonshotai/kimi-k2-instruct-0905",
 };
 
-const GRADING_SYSTEM_PROMPT = `You are an expert exam grader. Your task is to evaluate a student's answer and provide fair, constructive feedback.
-
-IMPORTANT - ANSWER KEY VALIDATION:
-The answer key provided may contain OCR errors. Before grading:
-1. First, analyze the question carefully to determine what the correct answer SHOULD be
-2. Verify that the provided "Correct Answer" makes sense for the question
-3. If the provided answer key appears INCORRECT (e.g., doesn't match the question logic, contains obvious errors, or is mathematically/factually wrong), grade based on what you determine to be the actual correct answer and note the suspected OCR error in your feedback
+const GRADING_SYSTEM_PROMPT = `You are an expert exam grader. Your task is to evaluate a student's answer against the provided correct answer and give fair, constructive feedback.
 
 GRADING RULES:
-1. For MCQ questions:
-   - Verify the marked correct option actually answers the question correctly
-   - If the answer key is wrong, grade against the actual correct answer
+1. For MCQ questions: The student is correct if they selected the marked correct option
 2. For text questions: Compare semantic meaning, not exact wording
 3. Award partial credit for partially correct answers when appropriate
 4. For math questions: Accept equivalent forms (e.g., 1/2 = 0.5 = 50%)
 5. Be lenient with minor spelling/grammar errors if the core concept is correct
-6. Consider the question's mark allocation when awarding partial scores
-
-RESPONSE FORMAT:
-You must respond with ONLY a valid JSON object in exactly this format, no other text:
-{
-  "isCorrect": true or false,
-  "score": number between 0 and the maximum score,
-  "feedback": "1-3 sentences explaining the grade. If you detected an answer key error, mention it here."
-}`;
+6. Consider the question's mark allocation when awarding partial scores`;
 
 interface QuestionWithOptions {
   id: string;
@@ -89,21 +73,9 @@ Student Answer: ${userAnswer || "(No answer provided)"}
 `;
   }
 
-  prompt += `
-Grade this answer according to the rules. Respond with JSON only.`;
+  prompt += `\nGrade this answer according to the rules.`;
 
   return prompt;
-}
-
-function parseGradeOutput(text: string): LLMGradeOutput {
-  // Try to extract JSON from the response
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("No JSON found in LLM response");
-  }
-
-  const parsed = JSON.parse(jsonMatch[0]);
-  return LLMGradeOutputSchema.parse(parsed);
 }
 
 export async function gradeAnswer(
@@ -168,15 +140,20 @@ export async function gradeAnswer(
       selectedOptionLabel
     );
 
-    const { text } = await generateText({
+    const { output } = await generateText({
       model: groq(MODEL_MAP[model]),
       system: GRADING_SYSTEM_PROMPT,
       prompt,
-      temperature: 0.1, // Low temperature for consistent grading
+      temperature: 0.1,
+      maxRetries: 3,
+      output: Output.object({ schema: LLMGradeOutputSchema }),
     });
 
-    // Parse LLM response
-    const gradeOutput = parseGradeOutput(text);
+    if (!output) {
+      throw new Error("Failed to get grading output from LLM");
+    }
+
+    const gradeOutput = output;
 
     // Ensure score is within bounds
     const score = Math.max(0, Math.min(gradeOutput.score, maxScore));

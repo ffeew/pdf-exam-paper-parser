@@ -38,9 +38,27 @@ interface DocumentViewProps {
   markdown: string;
   questions: Question[];
   sections: Section[];
+  // Lifted state for sync between views
+  selectedQuestionForChat: string | null;
+  onSelectedQuestionForChatChange: (questionNumber: string | null) => void;
+  activeTab: "answers" | "chat";
+  onActiveTabChange: (tab: "answers" | "chat") => void;
+  revealedAnswers: Record<string, boolean>;
+  onToggleAnswer: (questionNumber: string) => void;
 }
 
-export function DocumentView({ examId, markdown, questions, sections }: DocumentViewProps) {
+export function DocumentView({
+  examId,
+  markdown,
+  questions,
+  sections,
+  selectedQuestionForChat,
+  onSelectedQuestionForChatChange,
+  activeTab,
+  onActiveTabChange,
+  revealedAnswers,
+  onToggleAnswer,
+}: DocumentViewProps) {
   const documentRef = useRef<HTMLDivElement>(null);
   const [activeQuestionNumber, setActiveQuestionNumber] = useState<string | null>(null);
   const questionRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -307,6 +325,12 @@ export function DocumentView({ examId, markdown, questions, sections }: Document
           sections={sections}
           activeQuestionNumber={activeQuestionNumber}
           onQuestionClick={handleQuestionClick}
+          selectedQuestionForChat={selectedQuestionForChat}
+          onSelectedQuestionForChatChange={onSelectedQuestionForChatChange}
+          activeTab={activeTab}
+          onActiveTabChange={onActiveTabChange}
+          revealedAnswers={revealedAnswers}
+          onToggleAnswer={onToggleAnswer}
         />
       </div>
     </div>

@@ -15,6 +15,9 @@ interface SectionGroupProps {
   answersMap?: Map<string, UserAnswer>;
   onAnswerChange?: (questionId: string, answerText: string | null, selectedOptionId: string | null) => void;
   onAskAI?: (questionNumber: string) => void;
+  // Optional controlled props for answer reveal sync
+  revealedAnswers?: Record<string, boolean>;
+  onToggleAnswer?: (questionNumber: string) => void;
 }
 
 export function SectionGroup({
@@ -25,6 +28,8 @@ export function SectionGroup({
   answersMap,
   onAnswerChange,
   onAskAI,
+  revealedAnswers,
+  onToggleAnswer,
 }: SectionGroupProps) {
   return (
     <div className="space-y-4">
@@ -63,6 +68,12 @@ export function SectionGroup({
               : undefined
           }
           onAskAI={onAskAI}
+          showAnswer={revealedAnswers?.[question.questionNumber]}
+          onToggleAnswer={
+            onToggleAnswer
+              ? () => onToggleAnswer(question.questionNumber)
+              : undefined
+          }
         />
       ))}
     </div>
