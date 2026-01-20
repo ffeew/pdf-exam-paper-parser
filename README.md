@@ -162,7 +162,9 @@ app/api/[feature]/
 
 ## Design Decisions
 
-### Mistral OCR vs Vision Language Models
+### OCR & Processing
+
+**Mistral OCR vs Vision Language Models**
 
 Used Mistral OCR instead of general-purpose VLMs because:
 
@@ -170,7 +172,7 @@ Used Mistral OCR instead of general-purpose VLMs because:
 - More cost-effective than large VLMs
 - Better accuracy for structured exam paper content
 
-### Polling vs Server-Sent Events
+**Polling vs Server-Sent Events**
 
 Chose polling for processing status updates:
 
@@ -178,7 +180,17 @@ Chose polling for processing status updates:
 - OCR processing completes in under a minute
 - No complex connection management needed
 
-### AI Model Selection
+**Fire-and-Forget Async Processing**
+
+Used database-persisted status instead of job queues (BullMQ, Inngest):
+
+- No Redis dependency or worker processes to manage
+- Status polling works from any client
+- Progress updates at 10%, 40%, 70%, 90%, 100% during pipeline stages
+
+### AI Integration
+
+**AI Model Selection**
 
 Uses Groq for AI features due to:
 
@@ -188,9 +200,79 @@ Uses Groq for AI features due to:
 - Structured output support for question extraction
 - Two model options: GPT-OSS 120B (strict schema) and Kimi K2 (256k context)
 
-### Answer Key Detection
+**Streaming vs Structured Output**
+
+Different output modes for different use cases:
+
+- Streaming for chat: progressive feedback during tutoring responses
+- Structured output for grading: guaranteed valid JSON for database persistence
+- Temperature: 0.7 for creative tutoring, 0.1 for deterministic grading
+
+**Question-Scoped Chat**
+
+AI conversations are isolated per question:
+
+- System prompt includes specific question text, marks, and options
+- Switching questions doesn't pollute context with unrelated discussion
+- Per-question chat history retrieval from database
+
+### Data & Storage
+
+**Direct Client Upload with Presigned URLs**
+
+Three-step upload flow (checkHash → presign → confirm):
+
+- PDFs upload directly to R2, never proxying through server
+- Client-side SHA-256 hash check prevents duplicate uploads
+- Eliminates server bandwidth costs and memory pressure
+
+**Answer Key Detection**
 
 Checks both first 3 and last 4 pages of PDFs:
 
 - Answer keys appear at different locations across exam papers
 - Deduplication prevents redundant processing for short documents
+
+**Debounced Answer Auto-Save**
+
+Different save strategies by input type:
+
+- Text answers: 1 second debounce before save (reduces API calls)
+- MCQ selections: immediate save (intentional action)
+- Changing answers resets grading status to pending
+
+### Authentication & Security
+
+**better-auth vs NextAuth**
+
+Chose better-auth over NextAuth.js v5:
+
+- Native Drizzle adapter with proper TypeScript types
+- Simpler API than NextAuth's callback-heavy approach
+- First-class email/password support without additional providers
+
+**Presigned URL Security**
+
+S3-compatible signed URLs for R2 access:
+
+- 1-hour expiration for all URLs
+- Content-type constraints on uploads prevent file type bypass
+- UUID file keys prevent directory traversal and enumeration
+
+**Zod Schema Validation**
+
+Strict validation at API boundaries:
+
+- Invalid requests rejected immediately with structured errors
+- Type inference from schemas (no separate interface files)
+- Literal constraints prevent content-type bypass attacks
+
+### State Management
+
+**React Query for Server State**
+
+Used React Query instead of global state (Redux/Zustand):
+
+- Server-owned exam data fits stale-while-revalidate model
+- Optimistic updates with `onMutate` + `onError` rollback for instant UI
+- Built-in `refetchInterval` for processing status polling
