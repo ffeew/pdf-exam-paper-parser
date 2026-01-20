@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LatexText } from "@/components/ui/latex-text";
+import { MarkdownText } from "@/components/ui/markdown-text";
 import { QuestionCard } from "./question-card";
 import type { Question } from "@/app/api/exams/[id]/validator";
 
@@ -30,9 +31,9 @@ export function SectionGroup({
           </CardHeader>
           {sectionInstructions && (
             <CardContent className="pt-0">
-              <LatexText
+              <MarkdownText
                 text={sectionInstructions}
-                className="text-sm text-muted-foreground"
+                className="text-muted-foreground"
               />
             </CardContent>
           )}

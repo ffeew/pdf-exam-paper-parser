@@ -116,6 +116,48 @@ For each question:
    - Only include images that are diagrams, figures, or visual elements relevant to answering the question
    - Do NOT include images that are clearly logos, watermarks, headers, footers, or decorative elements
    - If no images are related to a question, use an empty array []
+10. CRITICAL - Include all shared context in sectionInstructions:
+   - sectionInstructions should contain ALL information students need to answer questions in that section
+   - This includes: word banks, answer options, reference tables, reading passages, formulas, or any other shared content
+
+   READING COMPREHENSION PASSAGES:
+   - For comprehension sections, you MUST include the COMPLETE passage text in sectionInstructions
+   - Do NOT summarize or excerpt - include the ENTIRE passage word-for-word
+   - Students cannot answer comprehension questions without the full passage
+   - Example: If the passage is about "Ming and his friends playing near the river bank", include EVERY paragraph of that passage
+
+   OTHER SHARED CONTENT:
+   - Word banks: Include all options, e.g., "(A) he, (B) it, (C) she, (D) they"
+   - Reference tables: Include the complete table data
+   - Cloze passages: Include the full text with blanks
+
+   - The goal is that a student should be able to answer any question using only the questionText + sectionInstructions
+
+11. CRITICAL - Handle parent questions with sub-parts correctly:
+   - When a question has sub-parts (e.g., 21i, 21ii, 21iii or 3a, 3b, 3c), extract them as separate questions
+   - The PARENT question text should go in sectionInstructions of the FIRST sub-question only
+   - Each sub-question's questionText should contain ONLY its specific instruction, NOT the parent text
+
+   EXAMPLE - Question 21 with parts i, ii, iii:
+   Original: "21. List three toys that Ming and his friends made out of recyclable materials. [3 marks]
+              (i) _________ (ii) _________ (iii) _________"
+
+   CORRECT extraction:
+   - Question 21i: questionText = "List the first toy." | sectionInstructions = "List three toys that Ming and his friends made out of recyclable materials."
+   - Question 21ii: questionText = "List the second toy." | sectionInstructions = ""
+   - Question 21iii: questionText = "List the third toy." | sectionInstructions = ""
+
+   WRONG extraction (DO NOT do this):
+   - Question 21i: questionText = "List the first toy. List three toys that Ming and his friends made..." (redundant!)
+
+   ANOTHER EXAMPLE - Question 5 with parts a, b:
+   Original: "5. Look at the graph above and answer the following:
+              (a) What is the highest value?
+              (b) What is the lowest value?"
+
+   CORRECT extraction:
+   - Question 5a: questionText = "What is the highest value?" | sectionInstructions = "Look at the graph above and answer the following:"
+   - Question 5b: questionText = "What is the lowest value?" | sectionInstructions = ""
 
 Also extract metadata about the exam:
 - Subject (Math, English, Chinese, Science, etc.)
