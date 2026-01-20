@@ -33,7 +33,13 @@ export function QuestionCard({ question }: QuestionCardProps) {
       <CardContent className="space-y-4">
         {/* Question images */}
         {question.images.length > 0 && (
-          <div className="flex gap-4 flex-wrap">
+          <div
+            className={
+              question.images.length > 1
+                ? "grid grid-cols-2 md:grid-cols-3 gap-4"
+                : "flex"
+            }
+          >
             {question.images.map((img) => (
               <QuestionImage key={img.id} image={img} />
             ))}

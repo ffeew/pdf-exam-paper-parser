@@ -33,9 +33,10 @@ export function QuestionImage({ image }: QuestionImageProps) {
       <Image
         src={image.imageUrl}
         alt={image.altText || "Question diagram"}
-        width={400}
-        height={300}
-        className={`object-contain max-w-full h-auto transition-opacity duration-300 ${
+        width={0}
+        height={0}
+        sizes="(max-width: 768px) 50vw, 33vw"
+        className={`w-full h-auto object-contain transition-opacity duration-300 ${
           isLoading ? "opacity-0" : "opacity-100"
         }`}
         onLoad={() => setIsLoading(false)}
