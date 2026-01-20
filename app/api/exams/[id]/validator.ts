@@ -17,6 +17,7 @@ export const SectionSchema = z.object({
   id: z.string(),
   sectionName: z.string(),
   instructions: z.string().nullable(),
+  context: z.string().nullable(),
   orderIndex: z.number(),
 });
 
@@ -27,7 +28,6 @@ export const QuestionSchema = z.object({
   questionType: z.enum(["mcq", "fill_blank", "short_answer", "long_answer"]),
   marks: z.number().nullable(),
   sectionId: z.string().nullable(),
-  context: z.string().nullable(),
   expectedAnswer: z.string().nullable(),
   orderIndex: z.number(),
   options: z.array(AnswerOptionSchema),

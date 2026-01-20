@@ -106,12 +106,16 @@ export async function saveExtractedData(
   ocrResult: OcrResult,
   answerKey?: AnswerKeyResult
 ) {
-  // Collect image IDs referenced in section instructions (these bypass admin filter)
+  // Collect image IDs referenced in section instructions/context (these bypass admin filter)
   const requiredImageIds = new Set<string>();
   if (extracted.sections) {
     for (const section of extracted.sections) {
       if (section.instructions) {
         const ids = extractImageIdsFromText(section.instructions);
+        ids.forEach((id) => requiredImageIds.add(id));
+      }
+      if (section.context) {
+        const ids = extractImageIdsFromText(section.context);
         ids.forEach((id) => requiredImageIds.add(id));
       }
     }
@@ -154,6 +158,7 @@ export async function saveExtractedData(
           examId,
           sectionName: s.sectionName,
           instructions: s.instructions,
+          context: s.context || null,
           orderIndex: i,
           createdAt: now,
         });
@@ -185,7 +190,6 @@ export async function saveExtractedData(
         questionText: q.questionText,
         questionType: q.questionType,
         marks: q.marks,
-        context: q.context || null,
         expectedAnswer: q.expectedAnswer,
         orderIndex: i,
         createdAt: now,

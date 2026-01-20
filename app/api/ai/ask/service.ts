@@ -50,8 +50,8 @@ function buildContextPrompt(context: QuestionContext): string {
 		prompt += `\n- Options:\n${context.options.map((o) => `  ${o.optionLabel}. ${o.optionText}`).join("\n")}`;
 	}
 
-	if (context.context) {
-		prompt += `\n- Additional Context: ${context.context}`;
+	if (context.sectionContext) {
+		prompt += `\n- Reference Material: ${context.sectionContext}`;
 	}
 
 	return prompt;

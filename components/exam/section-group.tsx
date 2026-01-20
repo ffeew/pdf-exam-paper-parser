@@ -10,6 +10,7 @@ import type { UserAnswer } from "@/app/api/answers/validator";
 interface SectionGroupProps {
   sectionName: string | null;
   sectionInstructions: string | null;
+  sectionContext: string | null;
   questions: Question[];
   examId?: string;
   answersMap?: Map<string, UserAnswer>;
@@ -28,6 +29,7 @@ interface SectionGroupProps {
 export function SectionGroup({
   sectionName,
   sectionInstructions,
+  sectionContext,
   questions,
   examId,
   answersMap,
@@ -39,7 +41,7 @@ export function SectionGroup({
   return (
     <div className="space-y-4">
       {/* Section Header */}
-      {(sectionName || sectionInstructions) && (
+      {(sectionName || sectionInstructions || sectionContext) && (
         <Card className="bg-muted/50 border-l-4 border-l-primary">
           <CardHeader className="pb-2">
             {sectionName && (
@@ -48,12 +50,21 @@ export function SectionGroup({
               </CardTitle>
             )}
           </CardHeader>
-          {sectionInstructions && (
-            <CardContent className="pt-0">
-              <MarkdownText
-                text={sectionInstructions}
-                className="text-muted-foreground"
-              />
+          {(sectionInstructions || sectionContext) && (
+            <CardContent className="pt-0 space-y-3">
+              {sectionInstructions && (
+                <div className="text-muted-foreground">
+                  <MarkdownText text={sectionInstructions} />
+                </div>
+              )}
+              {sectionContext && (
+                <div className="bg-background/50 border-l-4 border-primary/30 p-3 rounded-r-md">
+                  <MarkdownText
+                    text={sectionContext}
+                    className="text-sm leading-relaxed"
+                  />
+                </div>
+              )}
             </CardContent>
           )}
         </Card>

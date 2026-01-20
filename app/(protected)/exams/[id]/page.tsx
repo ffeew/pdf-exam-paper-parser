@@ -66,6 +66,7 @@ function ErrorState({ message }: { message: string }) {
 interface SectionGroupData {
 	sectionName: string | null;
 	sectionInstructions: string | null;
+	sectionContext: string | null;
 	questions: Question[];
 }
 
@@ -97,6 +98,7 @@ function groupQuestionsBySection(
 			groups.push({
 				sectionName: section.sectionName || null,
 				sectionInstructions: section.instructions,
+				sectionContext: section.context,
 				questions: sectionQuestions,
 			});
 		}
@@ -108,6 +110,7 @@ function groupQuestionsBySection(
 		groups.push({
 			sectionName: null,
 			sectionInstructions: null,
+			sectionContext: null,
 			questions: unsectionedQuestions,
 		});
 	}
@@ -312,6 +315,7 @@ export default function ExamPage({
 											key={`section-${index}`}
 											sectionName={group.sectionName}
 											sectionInstructions={group.sectionInstructions}
+											sectionContext={group.sectionContext}
 											questions={group.questions}
 											examId={id}
 											answersMap={answersMap}
@@ -355,6 +359,7 @@ export default function ExamPage({
 											onClose={() => setIsChatPanelOpen(false)}
 											sectionName={selectedSection?.sectionName ?? null}
 											sectionInstructions={selectedSection?.instructions ?? null}
+											sectionContext={selectedSection?.context ?? null}
 										/>
 									) : (
 										<div className="flex items-center justify-center h-full text-muted-foreground text-sm p-4">

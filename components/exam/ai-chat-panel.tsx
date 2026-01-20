@@ -18,6 +18,7 @@ interface AIChatPanelProps {
 	onClose?: () => void;
 	sectionName: string | null;
 	sectionInstructions: string | null;
+	sectionContext: string | null;
 }
 
 export function AIChatPanel({
@@ -28,6 +29,7 @@ export function AIChatPanel({
 	onClose,
 	sectionName,
 	sectionInstructions,
+	sectionContext,
 }: AIChatPanelProps) {
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -41,9 +43,9 @@ export function AIChatPanel({
 				optionLabel: o.optionLabel,
 				optionText: o.optionText,
 			})) ?? null,
-		context: question.context,
 		sectionName,
 		sectionInstructions,
+		sectionContext,
 	};
 
 	const {

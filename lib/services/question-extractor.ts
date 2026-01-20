@@ -20,7 +20,11 @@ const SectionSchema = z.object({
   instructions: z
     .string()
     .nullable()
-    .describe("Section instructions, word banks, reading passages, or shared context for all questions in this section"),
+    .describe("How to answer questions in this section: directions, format requirements (e.g., 'Choose the correct answer', 'Fill in the blanks')"),
+  context: z
+    .string()
+    .nullable()
+    .describe("Reference content for answering questions in this section: comprehension passages, reading material, word banks, cloze text. Include the COMPLETE text word-for-word, not summarized."),
   questionNumbers: z
     .array(z.string())
     .describe("List of question numbers belonging to this section (e.g., ['1', '2', '3'] or ['5a', '5b', '5c'])"),
@@ -41,10 +45,6 @@ const QuestionSchema = z.object({
     .number()
     .nullable()
     .describe("The number of marks for this question, null if not shown"),
-  context: z
-    .string()
-    .nullable()
-    .describe("Contextual passage, sentence, or reference text needed to answer THIS specific question. Different from instructions (how to answer) and section instructions (shared content for multiple questions). Examples: vocabulary-in-context sentences with highlighted words, grammar examples with errors to identify."),
   options: z
     .array(AnswerOptionSchema)
     .nullable()
@@ -94,10 +94,16 @@ CRITICAL RULES:
    - English: Do NOT include "A, B, C, D" options in questionText (extract to options array)
 
 2. SECTIONS - Extract sections SEPARATELY from questions:
-   - Output sections as a separate array with sectionName, instructions, and questionNumbers
+   - Output sections as a separate array with sectionName, instructions, context, and questionNumbers
    - Section formats: Chinese "一、辨字测验", English "Section A", "Part 1"
-   - instructions: MUST include ALL shared context students need: word banks, reading passages, reference tables, cloze text
-   - For comprehension: Include the COMPLETE passage word-for-word (not summarized)
+   - instructions: HOW to answer - directions, format requirements (e.g., "Choose the correct answer", "Fill in the blanks with words from the box")
+   - context: Reference content NEEDED to answer questions in this section:
+     * Comprehension passages (include COMPLETE text word-for-word, not summarized)
+     * Word banks
+     * Reading material
+     * Cloze text with blanks
+     * Reference tables or charts (as text)
+     * Vocabulary-in-context sentences with highlighted words
    - questionNumbers: List ALL question numbers that belong to this section (e.g., ["1", "2", "3"] or ["5a", "5b", "5c"])
    - Questions without a clear section should be grouped into a section with sectionName="" (empty string)
 
@@ -119,22 +125,7 @@ CRITICAL RULES:
    - Image refs in markdown: ![img-0.jpeg](img-0.jpeg)
    - EXCLUDE: logos, watermarks, headers, footers, decorative elements
 
-5. QUESTION-SPECIFIC CONTEXT - Extract contextual content needed to answer individual questions:
-   - Use "context" field for sentences/passages that apply to ONE question only
-   - Use section "instructions" for content shared across MULTIPLE questions
-
-   EXAMPLES OF CONTEXT:
-   - Vocabulary-in-context: "He was **delighted** that he was moving fast and was **confident** that he would be the winner."
-     (With labels: "(A) delighted | (B) confident")
-   - Grammar correction: "She goed to the store yesterday."
-   - Reference sentences: The specific sentence a question asks about
-
-   FORMATTING CONTEXT:
-   - Use **bold** for underlined or emphasized words
-   - Include option labels if they appear in the passage
-   - Preserve the exact text from the document
-
-6. READING COMPREHENSION PASSAGES - Link passage images to FIRST question in section:
+5. READING COMPREHENSION PASSAGES - Link passage images to FIRST question in section:
    - For comprehension sections (阅读理解, comprehension, reading passage), the passage may be an IMAGE
    - Look for images containing: text passages, notices, flyers, letters, articles, stories
    - Link these passage images to the FIRST question in that section via relatedImageIds

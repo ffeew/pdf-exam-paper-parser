@@ -18,9 +18,9 @@ export const QuestionContextSchema = z.object({
 	questionType: z.enum(["mcq", "fill_blank", "short_answer", "long_answer"]),
 	marks: z.number().nullable(),
 	options: z.array(OptionContextSchema).nullable(),
-	context: z.string().nullable(),
 	sectionName: z.string().nullable(),
 	sectionInstructions: z.string().nullable(),
+	sectionContext: z.string().nullable(),
 });
 export type QuestionContext = z.infer<typeof QuestionContextSchema>;
 

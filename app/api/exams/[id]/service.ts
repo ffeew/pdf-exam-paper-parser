@@ -120,7 +120,6 @@ export async function getExamWithQuestions(examId: string, userId: string) {
     questionType: q.questionType,
     marks: q.marks,
     sectionId: q.sectionId,
-    context: q.context,
     expectedAnswer: q.expectedAnswer,
     orderIndex: q.orderIndex,
     options: (optionsByQuestion.get(q.id) || []).map((opt) => ({
@@ -186,6 +185,9 @@ export async function getExamWithQuestions(examId: string, userId: string) {
       sectionName: s.sectionName,
       instructions: s.instructions
         ? replaceMarkdownImageUrls(s.instructions, imageIdToUrl)
+        : null,
+      context: s.context
+        ? replaceMarkdownImageUrls(s.context, imageIdToUrl)
         : null,
       orderIndex: s.orderIndex,
     })),

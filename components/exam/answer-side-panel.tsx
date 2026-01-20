@@ -241,6 +241,7 @@ export function AnswerSidePanel({
 							onQuestionChange={onSelectedQuestionForChatChange}
 							sectionName={selectedSection?.sectionName ?? null}
 							sectionInstructions={selectedSection?.instructions ?? null}
+							sectionContext={selectedSection?.context ?? null}
 						/>
 					);
 				})() : (

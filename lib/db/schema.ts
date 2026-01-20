@@ -49,7 +49,8 @@ export const sections = sqliteTable("sections", {
     .notNull()
     .references(() => exams.id, { onDelete: "cascade" }),
   sectionName: text("section_name").notNull(),
-  instructions: text("instructions"),
+  instructions: text("instructions"), // How to answer: directions, format requirements
+  context: text("context"), // Reference content for answering questions in this section: comprehension passages, reading material, word banks, cloze text. Include COMPLETE text word-for-word.
   orderIndex: integer("order_index").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
@@ -71,7 +72,6 @@ export const questions = sqliteTable(
       enum: ["mcq", "fill_blank", "short_answer", "long_answer"],
     }).notNull(),
     marks: integer("marks"),
-    context: text("context"), // Question-specific contextual content needed to answer this question
     expectedAnswer: text("expected_answer"),
     orderIndex: integer("order_index").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
