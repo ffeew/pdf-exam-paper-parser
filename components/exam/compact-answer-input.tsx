@@ -89,7 +89,7 @@ export function CompactAnswerInput({
 	switch (question.questionType) {
 		case "mcq":
 			return (
-				<div className={baseClasses}>
+				<div className={baseClasses} onClick={(e) => e.stopPropagation()}>
 					<RadioGroup
 						value={displayOption}
 						onValueChange={handleOptionChange}
