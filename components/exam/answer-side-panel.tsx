@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompactAnswerInput } from "./compact-answer-input";
 import { cn } from "@/lib/utils";
@@ -16,8 +17,22 @@ export function AnswerSidePanel({
 	activeQuestionNumber,
 	onQuestionClick,
 }: AnswerSidePanelProps) {
+	const containerRef = useRef<HTMLDivElement>(null);
+	const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+	// Auto-scroll to active question when it changes
+	useEffect(() => {
+		if (activeQuestionNumber && containerRef.current) {
+			const card = cardRefs.current.get(activeQuestionNumber);
+			if (card) {
+				// Use scrollIntoView with block: "nearest" to scroll minimum amount needed
+				card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+			}
+		}
+	}, [activeQuestionNumber]);
+
 	return (
-		<div className="h-full overflow-y-auto">
+		<div ref={containerRef} className="h-full overflow-y-auto">
 			<div className="sticky top-0 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 z-10 pb-2 border-b">
 				<h2 className="text-lg font-semibold px-4 py-3">Answers</h2>
 			</div>
@@ -27,8 +42,15 @@ export function AnswerSidePanel({
 					return (
 						<Card
 							key={question.id}
+							ref={(el) => {
+								if (el) {
+									cardRefs.current.set(question.questionNumber, el);
+								} else {
+									cardRefs.current.delete(question.questionNumber);
+								}
+							}}
 							className={cn(
-								"cursor-pointer transition-all duration-200",
+								"cursor-pointer transition-all duration-200 scroll-my-16",
 								isActive && "ring-2 ring-primary shadow-md"
 							)}
 							onClick={() => onQuestionClick(question.questionNumber)}

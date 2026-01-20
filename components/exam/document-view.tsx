@@ -17,6 +17,14 @@ export function DocumentView({ markdown, questions }: DocumentViewProps) {
   const documentRef = useRef<HTMLDivElement>(null);
   const [activeQuestionNumber, setActiveQuestionNumber] = useState<string | null>(null);
   const questionRefs = useRef<Map<string, HTMLElement>>(new Map());
+  // Track the start number of the current ordered list
+  const currentListStart = useRef(1);
+
+  // Build a set of valid question numbers for matching
+  const questionNumberSet = React.useMemo(
+    () => new Set(questions.map((q) => q.questionNumber)),
+    [questions]
+  );
 
   // Register question element refs when they mount
   const registerQuestionRef = useCallback((num: string, el: HTMLElement | null) => {
@@ -34,36 +42,55 @@ export function DocumentView({ markdown, questions }: DocumentViewProps) {
 
     const handleScroll = () => {
       const refs = Array.from(questionRefs.current.entries());
-      if (refs.length === 0) return;
+
+      // Default to the first question from props (not the first detected ref)
+      const firstQuestionNumber = questions[0]?.questionNumber || null;
+      let activeQuestion: string | null = firstQuestionNumber;
+
+      if (refs.length === 0) {
+        setActiveQuestionNumber(activeQuestion);
+        return;
+      }
 
       const containerRect = documentEl.getBoundingClientRect();
-      const containerTop = containerRect.top;
+      // Focus line: 20% down from the top of the container
+      const focusLine = containerRect.height * 0.2;
 
-      // Find the question that's closest to the top of the viewport
-      let closestQuestion: string | null = null;
-      let closestDistance = Infinity;
+      // Sort refs by question number to process in order
+      const sortedRefs = [...refs].sort(([a], [b]) => {
+        const parseNum = (s: string) => {
+          const match = s.match(/^(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        };
+        return parseNum(a) - parseNum(b) || a.localeCompare(b);
+      });
 
-      for (const [num, el] of refs) {
+      // Find the last question whose top has scrolled past the focus line
+      for (const [num, el] of sortedRefs) {
         const rect = el.getBoundingClientRect();
-        const distance = Math.abs(rect.top - containerTop - 100); // 100px offset
-        if (distance < closestDistance && rect.top < containerRect.bottom) {
-          closestDistance = distance;
-          closestQuestion = num;
+        const relativeTop = rect.top - containerRect.top;
+
+        if (relativeTop <= focusLine) {
+          // This question has scrolled past the focus line, it's active
+          activeQuestion = num;
+        } else {
+          // This question is still below the focus line, stop
+          break;
         }
       }
 
-      if (closestQuestion !== activeQuestionNumber) {
-        setActiveQuestionNumber(closestQuestion);
-      }
+      setActiveQuestionNumber(activeQuestion);
     };
 
     documentEl.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // Initial check
+    // Delay initial check to allow refs to be registered
+    const timer = setTimeout(handleScroll, 200);
 
     return () => {
       documentEl.removeEventListener("scroll", handleScroll);
+      clearTimeout(timer);
     };
-  }, [activeQuestionNumber]);
+  }, [questions]);
 
   // Handle click on question in side panel
   const handleQuestionClick = useCallback((questionNumber: string) => {
@@ -88,38 +115,86 @@ export function DocumentView({ markdown, questions }: DocumentViewProps) {
     });
   }, []);
 
+  // Find a matching question number (handles "11" matching "11a" if "11" doesn't exist)
+  const findMatchingQuestion = useCallback(
+    (num: string): string | null => {
+      // Direct match
+      if (questionNumberSet.has(num)) return num;
+      // Try with 'a' suffix (e.g., "11" -> "11a")
+      if (questionNumberSet.has(num + "a")) return num + "a";
+      return null;
+    },
+    [questionNumberSet]
+  );
+
   // Custom paragraph renderer to add IDs for question numbers and render LaTeX
   const renderParagraph = useCallback(
     ({ children, ...props }: React.ComponentProps<"p">) => {
-      const text = extractText(children);
-      const match = text.match(/^(?:Question\s+|Q)?(\d+)[.)]\s/i);
+      const text = extractText(children).trim();
+      // Match various question number formats at the start (with optional whitespace)
+      const match = text.match(/^\s*(?:Question\s+|Q)?(\d+[a-z]?)[.):\s]/i);
       const processedChildren = processChildren(children);
 
       if (match) {
-        const questionNum = match[1];
-        return (
-          <p
-            {...props}
-            ref={(el) => registerQuestionRef(questionNum, el)}
-            data-question={questionNum}
-            className="scroll-mt-4"
-          >
-            {processedChildren}
-          </p>
-        );
+        const matchedNum = match[1];
+        const questionNum = findMatchingQuestion(matchedNum);
+
+        if (questionNum) {
+          return (
+            <p
+              {...props}
+              ref={(el) => registerQuestionRef(questionNum, el)}
+              data-question={questionNum}
+              className="scroll-mt-4"
+            >
+              {processedChildren}
+            </p>
+          );
+        }
       }
 
       return <p {...props}>{processedChildren}</p>;
     },
-    [registerQuestionRef, processChildren]
+    [registerQuestionRef, processChildren, findMatchingQuestion]
   );
 
-  // Custom list item renderer with LaTeX support
-  const renderListItem = useCallback(
-    ({ children, ...props }: React.ComponentProps<"li">) => {
-      return <li {...props}>{processChildren(children)}</li>;
+  // Custom ordered list renderer to track start number
+  const renderOrderedList = useCallback(
+    ({ children, start, ...props }: React.ComponentProps<"ol"> & { start?: number }) => {
+      currentListStart.current = start ?? 1;
+      return <ol {...props} start={start}>{children}</ol>;
     },
-    [processChildren]
+    []
+  );
+
+  // Custom list item renderer with LaTeX support and question detection
+  const renderListItem = useCallback(
+    ({ children, ordered, index, ...props }: React.ComponentProps<"li"> & { ordered?: boolean; index?: number }) => {
+      const processedChildren = processChildren(children);
+
+      if (ordered && typeof index === "number") {
+        // Calculate the actual question number based on list start + index
+        const listNum = String(currentListStart.current + index);
+        const questionNum = findMatchingQuestion(listNum);
+
+        // Check if this list item number matches a known question
+        if (questionNum) {
+          return (
+            <li
+              {...props}
+              ref={(el) => registerQuestionRef(questionNum, el)}
+              data-question={questionNum}
+              className="scroll-mt-4"
+            >
+              {processedChildren}
+            </li>
+          );
+        }
+      }
+
+      return <li {...props}>{processedChildren}</li>;
+    },
+    [processChildren, findMatchingQuestion, registerQuestionRef]
   );
 
   // Custom table cell renderer with LaTeX support
@@ -174,6 +249,7 @@ export function DocumentView({ markdown, questions }: DocumentViewProps) {
             remarkPlugins={[remarkGfm]}
             components={{
               p: renderParagraph,
+              ol: renderOrderedList,
               li: renderListItem,
               td: renderTableCell,
               th: renderTableCell,
