@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LatexText } from "@/components/ui/latex-text";
@@ -9,7 +10,8 @@ import { FillBlankQuestion } from "./fill-blank-question";
 import { ShortAnswerQuestion } from "./short-answer-question";
 import { LongAnswerQuestion } from "./long-answer-question";
 import { QuestionImage } from "./question-image";
-import { MessageCircle } from "lucide-react";
+import { AnswerReveal } from "./answer-reveal";
+import { MessageCircle, Eye, EyeOff } from "lucide-react";
 import type { Question } from "@/app/api/exams/[id]/validator";
 
 interface QuestionCardProps {
@@ -18,6 +20,14 @@ interface QuestionCardProps {
 }
 
 export function QuestionCard({ question, onAskAI }: QuestionCardProps) {
+  const [showAnswer, setShowAnswer] = useState(false);
+
+  // Check if answer is available
+  const hasAnswer =
+    question.expectedAnswer ||
+    (question.questionType === "mcq" &&
+      question.options.some((opt) => opt.isCorrect));
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -30,6 +40,26 @@ export function QuestionCard({ question, onAskAI }: QuestionCardProps) {
               <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded">
                 {question.marks} {question.marks === 1 ? "mark" : "marks"}
               </span>
+            )}
+            {hasAnswer && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setShowAnswer(!showAnswer)}
+              >
+                {showAnswer ? (
+                  <>
+                    <EyeOff className="h-3 w-3 mr-1" />
+                    Hide Answer
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3 w-3 mr-1" />
+                    Show Answer
+                  </>
+                )}
+              </Button>
             )}
             {onAskAI && (
               <Button
@@ -93,6 +123,9 @@ export function QuestionCard({ question, onAskAI }: QuestionCardProps) {
             <LongAnswerQuestion questionId={question.id} />
           )}
         </div>
+
+        {/* Answer reveal */}
+        {showAnswer && <AnswerReveal question={question} />}
       </CardContent>
     </Card>
   );
