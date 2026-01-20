@@ -28,7 +28,7 @@ function getStatusColor(status: string) {
 
 function ExamsSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {[1, 2, 3].map((i) => (
         <Skeleton key={i} className="h-32 w-full" />
       ))}
@@ -110,9 +110,9 @@ export default function ExamsPage() {
       {exams.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {exams.map((exam) => (
-            <Link key={exam.id} href={`/exams/${exam.id}`}>
+            <Link key={exam.id} href={`/exams/${exam.id}`} className="block">
               <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
