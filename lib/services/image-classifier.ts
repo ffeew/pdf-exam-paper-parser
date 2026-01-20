@@ -33,23 +33,23 @@ export function classifyByPosition(image: OcrImage): ImageClassification {
     (imageWidth * imageHeight) / (image.pageWidth * image.pageHeight);
 
   // Heuristics for administrative images:
-  // 1. Very small images (<1% of page) are likely logos/icons
-  // 2. Small images (<3% of page) in bottom corners are likely score boxes
+  // 1. Very small images (<2% of page) are likely logos/icons
+  // 2. Small images (<5% of page) in bottom corners are likely score boxes
   // 3. Images in the top margin with small height are likely headers
 
   const isInBottomRight = relativeX > 0.7 && relativeY > 0.8;
   const isInBottomLeft =
     image.topLeftX / image.pageWidth < 0.3 && relativeY > 0.8;
   const isInTopArea = relativeTopY < 0.15;
-  const isSmall = relativeArea < 0.03; // Less than 3% of page
-  const isVerySmall = relativeArea < 0.01; // Less than 1% of page
+  const isSmall = relativeArea < 0.05; // Less than 5% of page
+  const isVerySmall = relativeArea < 0.02; // Less than 2% of page
 
   // Very small images are likely decorative
   if (isVerySmall) {
     return {
       imageId: image.id,
       classification: "administrative",
-      confidence: "medium",
+      confidence: "high",
       reason: "Very small image (likely logo or icon)",
     };
   }
