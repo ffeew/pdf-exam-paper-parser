@@ -9,6 +9,13 @@ export interface OcrImage {
   base64: string;
   mimeType: string;
   pageNumber: number;
+  // Position data from Mistral OCR for filtering administrative images
+  topLeftX: number;
+  topLeftY: number;
+  bottomRightX: number;
+  bottomRightY: number;
+  pageWidth: number;
+  pageHeight: number;
 }
 
 export interface OcrPage {
@@ -37,30 +44,43 @@ export async function processDocumentWithOcr(
     includeImageBase64: true,
   });
 
-  const pages: OcrPage[] = (response.pages || []).map((page, index) => ({
-    pageNumber: index + 1,
-    markdown: page.markdown || "",
-    images: (page.images || []).map((img) => {
-      // Mistral returns base64 with data URL prefix: "data:image/jpeg;base64,..."
-      // Strip the prefix to get just the base64 data
-      let base64Data = img.imageBase64 || "";
-      const dataUrlMatch = base64Data.match(/^data:([^;]+);base64,(.+)$/);
-      let mimeType = "image/jpeg";
+  const pages: OcrPage[] = (response.pages || []).map((page, index) => {
+    // Extract page dimensions for position calculations
+    const pageWidth = page.dimensions?.width || 1654; // Default A4 at 200 DPI
+    const pageHeight = page.dimensions?.height || 2338;
 
-      if (dataUrlMatch) {
-        mimeType = dataUrlMatch[1];
-        base64Data = dataUrlMatch[2];
-      }
+    return {
+      pageNumber: index + 1,
+      markdown: page.markdown || "",
+      images: (page.images || []).map((img) => {
+        // Mistral returns base64 with data URL prefix: "data:image/jpeg;base64,..."
+        // Strip the prefix to get just the base64 data
+        let base64Data = img.imageBase64 || "";
+        const dataUrlMatch = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+        let mimeType = "image/jpeg";
 
-      return {
-        // Use Mistral's actual image ID (e.g., "img-0.jpeg")
-        id: img.id || `page-${index + 1}-img-unknown`,
-        base64: base64Data,
-        mimeType,
-        pageNumber: index + 1,
-      };
-    }),
-  }));
+        if (dataUrlMatch) {
+          mimeType = dataUrlMatch[1];
+          base64Data = dataUrlMatch[2];
+        }
+
+        return {
+          // Use Mistral's actual image ID (e.g., "img-0.jpeg")
+          id: img.id || `page-${index + 1}-img-unknown`,
+          base64: base64Data,
+          mimeType,
+          pageNumber: index + 1,
+          // Position data for filtering administrative images
+          topLeftX: img.topLeftX ?? 0,
+          topLeftY: img.topLeftY ?? 0,
+          bottomRightX: img.bottomRightX ?? pageWidth,
+          bottomRightY: img.bottomRightY ?? pageHeight,
+          pageWidth,
+          pageHeight,
+        };
+      }),
+    };
+  });
 
   return {
     pages,

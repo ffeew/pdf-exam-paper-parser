@@ -6,6 +6,7 @@ import { uploadBuffer } from "@/lib/storage";
 import type { ExtractedExam } from "./question-extractor";
 import type { OcrResult } from "./ocr";
 import type { AnswerKeyResult } from "./answer-key-validator";
+import { classifyByPosition, classifyWithVisionLLM } from "./image-classifier";
 
 function getExtension(mimeType: string): string {
   const map: Record<string, string> = {
@@ -31,6 +32,31 @@ async function uploadExtractedImages(
   for (const page of ocrResult.pages) {
     for (const img of page.images) {
       if (!img.base64) continue;
+
+      // Classify image to filter out administrative elements (score boxes, logos, etc.)
+      let classification = classifyByPosition(img);
+
+      // For medium/low confidence, use vision LLM for verification
+      if (classification.confidence !== "high") {
+        console.log(
+          `[${examId}] Position heuristics uncertain for ${img.id} (${classification.confidence}), using vision LLM...`
+        );
+        classification = await classifyWithVisionLLM(img);
+        console.log(
+          `[${examId}] Vision LLM result for ${img.id}: ${classification.classification} (${classification.confidence}) - ${classification.reason}`
+        );
+      }
+
+      // Skip administrative images with high confidence
+      if (
+        classification.classification === "administrative" &&
+        classification.confidence === "high"
+      ) {
+        console.log(
+          `[${examId}] Skipping administrative image: ${img.id} (${classification.reason})`
+        );
+        continue;
+      }
 
       // Convert base64 to buffer
       const buffer = Buffer.from(img.base64, "base64");
