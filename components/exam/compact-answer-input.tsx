@@ -1,28 +1,89 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { GradeFeedback } from "./grade-feedback";
+import { GradeButton } from "./grade-button";
 import type { Question } from "@/app/api/exams/[id]/validator";
+import type { UserAnswer } from "@/app/api/answers/validator";
 
 interface CompactAnswerInputProps {
 	question: Question;
-	isActive?: boolean;
+	examId: string;
+	savedAnswer?: UserAnswer;
+	onAnswerChange?: (answerText: string | null, selectedOptionId: string | null) => void;
 }
 
 export function CompactAnswerInput({
 	question,
-	isActive = false,
+	examId,
+	savedAnswer,
+	onAnswerChange,
 }: CompactAnswerInputProps) {
-	const [answer, setAnswer] = useState("");
-	const [selectedOption, setSelectedOption] = useState("");
+	// Local state for text inputs - initialized from savedAnswer on mount
+	// Parent component should use key={question.id} to remount when question changes
+	const [localAnswer, setLocalAnswer] = useState(savedAnswer?.answerText ?? "");
+	const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-	const baseClasses = cn(
-		"transition-all duration-200",
-		isActive && "ring-2 ring-primary ring-offset-2 rounded-md"
+	const displayOption = savedAnswer?.selectedOptionId ?? "";
+
+	// Debounced save for text inputs
+	const debouncedSave = useCallback(
+		(text: string) => {
+			if (debounceTimerRef.current) {
+				clearTimeout(debounceTimerRef.current);
+			}
+			debounceTimerRef.current = setTimeout(() => {
+				onAnswerChange?.(text || null, null);
+				debounceTimerRef.current = null;
+			}, 1000);
+		},
+		[onAnswerChange]
+	);
+
+	// Handle text input change
+	const handleTextChange = (value: string) => {
+		setLocalAnswer(value);
+		debouncedSave(value);
+	};
+
+	// Handle MCQ option change (immediate save)
+	const handleOptionChange = (optionId: string) => {
+		onAnswerChange?.(null, optionId);
+	};
+
+	const hasAnswer = Boolean(localAnswer || displayOption);
+	const showGradeControls = savedAnswer && (savedAnswer.answerText || savedAnswer.selectedOptionId);
+
+	const baseClasses = "transition-all duration-200";
+
+	const renderGradeSection = () => (
+		<>
+			{showGradeControls && (
+				<div className="flex items-center justify-between mt-2">
+					<GradeButton
+						examId={examId}
+						questionId={question.id}
+						hasAnswer={hasAnswer}
+						gradingStatus={savedAnswer?.gradingStatus ?? null}
+						size="sm"
+					/>
+				</div>
+			)}
+			{savedAnswer && savedAnswer.gradingStatus && savedAnswer.gradingStatus !== "pending" && (
+				<GradeFeedback
+					isCorrect={savedAnswer.isCorrect}
+					score={savedAnswer.score}
+					maxScore={savedAnswer.maxScore}
+					feedback={savedAnswer.feedback}
+					gradingStatus={savedAnswer.gradingStatus}
+				/>
+			)}
+		</>
 	);
 
 	switch (question.questionType) {
@@ -30,8 +91,8 @@ export function CompactAnswerInput({
 			return (
 				<div className={baseClasses}>
 					<RadioGroup
-						value={selectedOption}
-						onValueChange={setSelectedOption}
+						value={displayOption}
+						onValueChange={handleOptionChange}
 						className="flex flex-wrap gap-2"
 					>
 						{question.options.map((option) => (
@@ -53,6 +114,7 @@ export function CompactAnswerInput({
 							</div>
 						))}
 					</RadioGroup>
+					{renderGradeSection()}
 				</div>
 			);
 
@@ -62,10 +124,11 @@ export function CompactAnswerInput({
 					<Input
 						type="text"
 						placeholder="Your answer..."
-						value={answer}
-						onChange={(e) => setAnswer(e.target.value)}
+						value={localAnswer}
+						onChange={(e) => handleTextChange(e.target.value)}
 						className="h-8 text-sm"
 					/>
+					{renderGradeSection()}
 				</div>
 			);
 
@@ -74,11 +137,12 @@ export function CompactAnswerInput({
 				<div className={baseClasses}>
 					<Textarea
 						placeholder="Your answer..."
-						value={answer}
-						onChange={(e) => setAnswer(e.target.value)}
+						value={localAnswer}
+						onChange={(e) => handleTextChange(e.target.value)}
 						rows={2}
 						className="resize-none text-sm min-h-15"
 					/>
+					{renderGradeSection()}
 				</div>
 			);
 
@@ -87,11 +151,12 @@ export function CompactAnswerInput({
 				<div className={baseClasses}>
 					<Textarea
 						placeholder="Your answer..."
-						value={answer}
-						onChange={(e) => setAnswer(e.target.value)}
+						value={localAnswer}
+						onChange={(e) => handleTextChange(e.target.value)}
 						rows={4}
 						className="resize-y text-sm min-h-20"
 					/>
+					{renderGradeSection()}
 				</div>
 			);
 
@@ -101,10 +166,11 @@ export function CompactAnswerInput({
 					<Input
 						type="text"
 						placeholder="Your answer..."
-						value={answer}
-						onChange={(e) => setAnswer(e.target.value)}
+						value={localAnswer}
+						onChange={(e) => handleTextChange(e.target.value)}
 						className="h-8 text-sm"
 					/>
+					{renderGradeSection()}
 				</div>
 			);
 	}

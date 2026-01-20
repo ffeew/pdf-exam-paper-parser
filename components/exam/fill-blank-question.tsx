@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface FillBlankQuestionProps {
   questionId: string;
+  value?: string;
+  onChange?: (value: string) => void;
 }
 
-export function FillBlankQuestion({ questionId }: FillBlankQuestionProps) {
-  const [answer, setAnswer] = useState("");
-
+export function FillBlankQuestion({
+  questionId,
+  value = "",
+  onChange,
+}: FillBlankQuestionProps) {
   return (
     <div className="space-y-2">
       <Label htmlFor={`answer-${questionId}`}>Your Answer</Label>
@@ -18,8 +21,8 @@ export function FillBlankQuestion({ questionId }: FillBlankQuestionProps) {
         id={`answer-${questionId}`}
         type="text"
         placeholder="Enter your answer..."
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
         className="max-w-md"
       />
     </div>

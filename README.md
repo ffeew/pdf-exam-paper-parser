@@ -8,6 +8,8 @@ A full-stack application that parses PDF exam papers into interactive web-based 
 - **OCR Processing**: Uses Mistral OCR to extract text, images, and structure from PDFs
 - **Structured Exam View**: Renders questions with proper formatting, LaTeX math support, and images
 - **Interactive Answers**: MCQ radio buttons, fill-in-the-blank inputs, short/long answer text areas
+- **Auto-Save**: Answers persist automatically as you type (debounced) or select options
+- **LLM Grading**: AI-powered answer evaluation with scores and detailed feedback
 - **AI Tutor**: Ask questions about specific exam problems with context-aware AI assistance
 - **Answer Reveal**: Show correct answers for self-study and review
 
@@ -51,6 +53,15 @@ Two-tier approach to remove administrative images (logos, watermarks, score boxe
 - Context extraction (vocabulary sentences, grammar examples)
 - Image-to-question relationship tracking
 - Marks extraction from various formats ((2 marks), [3], (2m))
+
+### Answer Submission & LLM Grading
+
+- **Auto-save**: Text answers debounce for 1 second before saving; MCQ selections save immediately
+- **Grading**: LLM evaluates user answers against expected answers or correct MCQ options
+- **Partial Credit**: Supports partial scoring for text answers based on semantic similarity
+- **Feedback**: Each graded answer includes an explanation of why it was marked correct/incorrect
+- **Batch Grading**: "Grade All" option to evaluate all submitted answers at once
+- **Progress Tracking**: Summary panel shows answered/graded counts and total score
 
 ### Additional Features
 
@@ -126,12 +137,15 @@ npm run dev      # Start development server
 
 ## API Endpoints
 
-| Endpoint               | Method     | Description                              |
-| ---------------------- | ---------- | ---------------------------------------- |
-| `/api/upload`          | POST       | Upload PDF (presign, checkHash, confirm) |
-| `/api/exams/[id]`      | GET        | Get parsed exam with questions           |
-| `/api/ai/ask`          | POST       | Ask AI about a specific question         |
-| `/api/ai/chat-history` | GET/DELETE | Manage chat history                      |
+| Endpoint                 | Method     | Description                              |
+| ------------------------ | ---------- | ---------------------------------------- |
+| `/api/upload`            | POST       | Upload PDF (presign, checkHash, confirm) |
+| `/api/exams/[id]`        | GET        | Get parsed exam with questions           |
+| `/api/answers`           | GET/POST   | Get or save user answers                 |
+| `/api/answers/grade`     | POST       | Grade a single answer with LLM           |
+| `/api/answers/grade-exam`| POST       | Grade all submitted answers for an exam  |
+| `/api/ai/ask`            | POST       | Ask AI about a specific question         |
+| `/api/ai/chat-history`   | GET/DELETE | Manage chat history                      |
 
 ## Architecture
 

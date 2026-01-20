@@ -137,25 +137,39 @@ export const chatMessages = sqliteTable(
 );
 
 // User answers table
-export const userAnswers = sqliteTable("user_answers", {
-  id: text("id").primaryKey(),
-  userId: text("user_id").notNull(), // References better-auth user.id
-  questionId: text("question_id")
-    .notNull()
-    .references(() => questions.id, { onDelete: "cascade" }),
-  examId: text("exam_id")
-    .notNull()
-    .references(() => exams.id, { onDelete: "cascade" }),
-  answerText: text("answer_text"),
-  selectedOptionId: text("selected_option_id").references(
-    () => answerOptions.id,
-    { onDelete: "set null" }
-  ),
-  isCorrect: integer("is_correct", { mode: "boolean" }),
-  score: integer("score"),
-  submittedAt: integer("submitted_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
-});
+export const userAnswers = sqliteTable(
+  "user_answers",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(), // References better-auth user.id
+    questionId: text("question_id")
+      .notNull()
+      .references(() => questions.id, { onDelete: "cascade" }),
+    examId: text("exam_id")
+      .notNull()
+      .references(() => exams.id, { onDelete: "cascade" }),
+    answerText: text("answer_text"),
+    selectedOptionId: text("selected_option_id").references(
+      () => answerOptions.id,
+      { onDelete: "set null" }
+    ),
+    isCorrect: integer("is_correct", { mode: "boolean" }),
+    score: integer("score"),
+    maxScore: integer("max_score"), // Question's max marks for percentage calc
+    feedback: text("feedback"), // LLM explanation of grade
+    gradingStatus: text("grading_status", {
+      enum: ["pending", "grading", "graded", "error"],
+    }).default("pending"),
+    gradingModel: text("grading_model"), // Which AI model graded
+    gradedAt: integer("graded_at", { mode: "timestamp" }),
+    submittedAt: integer("submitted_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    index("user_answers_user_exam_idx").on(table.userId, table.examId),
+    index("user_answers_question_idx").on(table.questionId),
+  ]
+);
 
 // Relations
 export const examsRelations = relations(exams, ({ many }) => ({

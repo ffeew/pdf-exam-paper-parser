@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LatexText } from "@/components/ui/latex-text";
@@ -11,22 +11,69 @@ import { ShortAnswerQuestion } from "./short-answer-question";
 import { LongAnswerQuestion } from "./long-answer-question";
 import { QuestionImage } from "./question-image";
 import { AnswerReveal } from "./answer-reveal";
+import { GradeFeedback } from "./grade-feedback";
+import { GradeButton } from "./grade-button";
 import { MessageCircle, Eye, EyeOff } from "lucide-react";
 import type { Question } from "@/app/api/exams/[id]/validator";
+import type { UserAnswer } from "@/app/api/answers/validator";
 
 interface QuestionCardProps {
   question: Question;
+  examId?: string;
+  savedAnswer?: UserAnswer;
+  onAnswerChange?: (answerText: string | null, selectedOptionId: string | null) => void;
   onAskAI?: (questionNumber: string) => void;
 }
 
-export function QuestionCard({ question, onAskAI }: QuestionCardProps) {
+export function QuestionCard({
+  question,
+  examId,
+  savedAnswer,
+  onAnswerChange,
+  onAskAI,
+}: QuestionCardProps) {
   const [showAnswer, setShowAnswer] = useState(false);
 
-  // Check if answer is available
-  const hasAnswer =
+  // Local state for text inputs - initialized from savedAnswer on mount
+  // Key prop on parent ensures this remounts when question changes
+  const [localTextAnswer, setLocalTextAnswer] = useState(savedAnswer?.answerText ?? "");
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const displayOptionId = savedAnswer?.selectedOptionId ?? "";
+
+  // Debounced save for text inputs
+  const debouncedSave = useCallback(
+    (text: string) => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        onAnswerChange?.(text || null, null);
+        debounceTimerRef.current = null;
+      }, 1000);
+    },
+    [onAnswerChange]
+  );
+
+  // Handle text input change
+  const handleTextChange = (value: string) => {
+    setLocalTextAnswer(value);
+    debouncedSave(value);
+  };
+
+  // Handle MCQ option change (immediate save)
+  const handleOptionChange = (optionId: string) => {
+    onAnswerChange?.(null, optionId);
+  };
+
+  // Check if answer key is available for reveal
+  const hasAnswerKey =
     question.expectedAnswer ||
     (question.questionType === "mcq" &&
       question.options.some((opt) => opt.isCorrect));
+
+  // Check if user has submitted an answer
+  const hasUserAnswer = Boolean(localTextAnswer || savedAnswer?.selectedOptionId);
 
   return (
     <Card>
@@ -41,7 +88,7 @@ export function QuestionCard({ question, onAskAI }: QuestionCardProps) {
                 {question.marks} {question.marks === 1 ? "mark" : "marks"}
               </span>
             )}
-            {hasAnswer && (
+            {hasAnswerKey && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -111,18 +158,56 @@ export function QuestionCard({ question, onAskAI }: QuestionCardProps) {
         {/* Answer input based on type */}
         <div className="pt-2">
           {question.questionType === "mcq" && (
-            <McqQuestion questionId={question.id} options={question.options} />
+            <McqQuestion
+              questionId={question.id}
+              options={question.options}
+              value={displayOptionId}
+              onChange={handleOptionChange}
+            />
           )}
           {question.questionType === "fill_blank" && (
-            <FillBlankQuestion questionId={question.id} />
+            <FillBlankQuestion
+              questionId={question.id}
+              value={localTextAnswer}
+              onChange={handleTextChange}
+            />
           )}
           {question.questionType === "short_answer" && (
-            <ShortAnswerQuestion questionId={question.id} />
+            <ShortAnswerQuestion
+              questionId={question.id}
+              value={localTextAnswer}
+              onChange={handleTextChange}
+            />
           )}
           {question.questionType === "long_answer" && (
-            <LongAnswerQuestion questionId={question.id} />
+            <LongAnswerQuestion
+              questionId={question.id}
+              value={localTextAnswer}
+              onChange={handleTextChange}
+            />
           )}
         </div>
+
+        {/* Grade button and feedback */}
+        {examId && hasUserAnswer && (
+          <div className="pt-2 border-t space-y-2">
+            <GradeButton
+              examId={examId}
+              questionId={question.id}
+              hasAnswer={hasUserAnswer}
+              gradingStatus={savedAnswer?.gradingStatus ?? null}
+            />
+            {savedAnswer && savedAnswer.gradingStatus && savedAnswer.gradingStatus !== "pending" && (
+              <GradeFeedback
+                isCorrect={savedAnswer.isCorrect}
+                score={savedAnswer.score}
+                maxScore={savedAnswer.maxScore}
+                feedback={savedAnswer.feedback}
+                gradingStatus={savedAnswer.gradingStatus}
+              />
+            )}
+          </div>
+        )}
 
         {/* Answer reveal */}
         {showAnswer && <AnswerReveal question={question} />}

@@ -1,12 +1,14 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { useExam } from "@/hooks/use-exam";
+import { useExamAnswers, useSubmitAnswer } from "@/hooks/use-answers";
 import { ExamHeader } from "@/components/exam/exam-header";
 import { SectionGroup } from "@/components/exam/section-group";
 import { QuestionImage } from "@/components/exam/question-image";
+import { ExamSummary } from "@/components/exam/exam-summary";
 import {
 	ExamViewToggle,
 	type ViewMode,
@@ -122,11 +124,33 @@ export default function ExamPage({
 	const router = useRouter();
 	const { data: session, isPending: isSessionLoading } = useSession();
 	const { data: exam, isLoading, error } = useExam(id);
+	const { data: answersData } = useExamAnswers({ examId: id });
+	const submitMutation = useSubmitAnswer();
 	const [viewMode, setViewMode] = useState<ViewMode>("structured");
 	const [selectedQuestionForChat, setSelectedQuestionForChat] = useState<
 		string | null
 	>(null);
 	const [isChatPanelOpen, setIsChatPanelOpen] = useState(false);
+
+	// Create a map for quick answer lookup by questionId
+	const answersMap = useMemo(() => {
+		const map = new Map<string, NonNullable<typeof answersData>["answers"][number]>();
+		answersData?.answers.forEach((a) => map.set(a.questionId, a));
+		return map;
+	}, [answersData]);
+
+	// Handle answer change
+	const handleAnswerChange = useCallback(
+		(questionId: string, answerText: string | null, selectedOptionId: string | null) => {
+			submitMutation.mutate({
+				examId: id,
+				questionId,
+				answerText,
+				selectedOptionId,
+			});
+		},
+		[id, submitMutation]
+	);
 
 	// Handle "Ask AI" button click - opens panel and selects question
 	const handleAskAI = (questionNumber: string) => {
@@ -217,6 +241,15 @@ export default function ExamPage({
 								isChatPanelOpen ? "flex-[0_0_65%]" : "flex-1"
 							)}
 						>
+							{/* Exam Summary */}
+							<div className="mb-6">
+								<ExamSummary
+									examId={id}
+									totalQuestions={exam.questions.length}
+									answers={answersData?.answers ?? []}
+								/>
+							</div>
+
 							{/* Exam-level images (not linked to specific questions) */}
 							{exam.examImages && exam.examImages.length > 0 && (
 								<Card className="mb-8">
@@ -243,6 +276,9 @@ export default function ExamPage({
 											sectionName={group.sectionName}
 											sectionInstructions={group.sectionInstructions}
 											questions={group.questions}
+											examId={id}
+											answersMap={answersMap}
+											onAnswerChange={handleAnswerChange}
 											onAskAI={handleAskAI}
 										/>
 									)

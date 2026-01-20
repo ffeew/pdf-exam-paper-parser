@@ -5,11 +5,15 @@ import { LatexText } from "@/components/ui/latex-text";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { QuestionCard } from "./question-card";
 import type { Question } from "@/app/api/exams/[id]/validator";
+import type { UserAnswer } from "@/app/api/answers/validator";
 
 interface SectionGroupProps {
   sectionName: string | null;
   sectionInstructions: string | null;
   questions: Question[];
+  examId?: string;
+  answersMap?: Map<string, UserAnswer>;
+  onAnswerChange?: (questionId: string, answerText: string | null, selectedOptionId: string | null) => void;
   onAskAI?: (questionNumber: string) => void;
 }
 
@@ -17,6 +21,9 @@ export function SectionGroup({
   sectionName,
   sectionInstructions,
   questions,
+  examId,
+  answersMap,
+  onAnswerChange,
   onAskAI,
 }: SectionGroupProps) {
   return (
@@ -44,7 +51,19 @@ export function SectionGroup({
 
       {/* Questions in this section */}
       {questions.map((question) => (
-        <QuestionCard key={question.id} question={question} onAskAI={onAskAI} />
+        <QuestionCard
+          key={question.id}
+          question={question}
+          examId={examId}
+          savedAnswer={answersMap?.get(question.id)}
+          onAnswerChange={
+            onAnswerChange
+              ? (answerText, selectedOptionId) =>
+                  onAnswerChange(question.id, answerText, selectedOptionId)
+              : undefined
+          }
+          onAskAI={onAskAI}
+        />
       ))}
     </div>
   );

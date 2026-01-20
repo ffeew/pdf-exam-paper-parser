@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { CompactAnswerInput } from "./compact-answer-input";
+import { ExamSummary } from "./exam-summary";
 import { AIChatPanel } from "./ai-chat-panel";
 import { cn } from "@/lib/utils";
 import { MessageCircle } from "lucide-react";
+import { useExamAnswers, useSubmitAnswer } from "@/hooks/use-answers";
 import type { Question, Section } from "@/app/api/exams/[id]/validator";
 
 interface AnswerSidePanelProps {
@@ -31,6 +33,30 @@ export function AnswerSidePanel({
 	);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+	// Fetch answers and submit mutation
+	const { data: answersData } = useExamAnswers({ examId });
+	const submitMutation = useSubmitAnswer();
+
+	// Create a map for quick answer lookup by questionId
+	const answersMap = useMemo(() => {
+		const map = new Map<string, NonNullable<typeof answersData>["answers"][number]>();
+		answersData?.answers.forEach((a) => map.set(a.questionId, a));
+		return map;
+	}, [answersData]);
+
+	// Handle answer change
+	const handleAnswerChange = useCallback(
+		(questionId: string, answerText: string | null, selectedOptionId: string | null) => {
+			submitMutation.mutate({
+				examId,
+				questionId,
+				answerText,
+				selectedOptionId,
+			});
+		},
+		[examId, submitMutation]
+	);
 
 	// Get the selected question object for chat
 	const selectedQuestion = questions.find(
@@ -79,9 +105,17 @@ export function AnswerSidePanel({
 			<TabsContent value="answers" className="flex-1 min-h-0 overflow-hidden mt-0">
 				<div ref={containerRef} className="h-full overflow-y-auto">
 					<div className="space-y-3 p-4">
+						{/* Exam Summary */}
+						<ExamSummary
+							examId={examId}
+							totalQuestions={questions.length}
+							answers={answersData?.answers ?? []}
+						/>
+
 						{questions.map((question) => {
 							const isActive = activeQuestionNumber === question.questionNumber;
 							const isSelectedForChat = selectedQuestionForChat === question.questionNumber;
+							const savedAnswer = answersMap.get(question.id);
 							return (
 								<Card
 									key={question.id}
@@ -131,7 +165,14 @@ export function AnswerSidePanel({
 										className="py-2 px-3"
 										onClick={(e) => e.stopPropagation()}
 									>
-										<CompactAnswerInput question={question} isActive={isActive} />
+										<CompactAnswerInput
+											question={question}
+											examId={examId}
+											savedAnswer={savedAnswer}
+											onAnswerChange={(answerText, selectedOptionId) =>
+												handleAnswerChange(question.id, answerText, selectedOptionId)
+											}
+										/>
 									</CardContent>
 								</Card>
 							);

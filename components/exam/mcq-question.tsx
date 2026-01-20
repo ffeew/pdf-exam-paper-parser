@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { LatexText } from "@/components/ui/latex-text";
@@ -12,13 +11,22 @@ interface McqQuestionProps {
     optionLabel: string;
     optionText: string;
   }>;
+  value?: string;
+  onChange?: (optionId: string) => void;
 }
 
-export function McqQuestion({ questionId, options }: McqQuestionProps) {
-  const [selected, setSelected] = useState<string>("");
-
+export function McqQuestion({
+  questionId,
+  options,
+  value = "",
+  onChange,
+}: McqQuestionProps) {
   return (
-    <RadioGroup value={selected} onValueChange={setSelected} className="space-y-3">
+    <RadioGroup
+      value={value}
+      onValueChange={(val) => onChange?.(val)}
+      className="space-y-3"
+    >
       {options.map((option) => (
         <div
           key={option.id}
