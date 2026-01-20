@@ -9,11 +9,16 @@ interface AnswerRevealProps {
 }
 
 export function AnswerReveal({ question }: AnswerRevealProps) {
-  // For MCQ, find the correct option
+  // For MCQ, find the correct option using expectedAnswer (stores the option label)
   if (question.questionType === "mcq") {
-    const correctOption = question.options.find((opt) => opt.isCorrect);
+    const correctOptionLabel = question.expectedAnswer?.toUpperCase().trim();
+    const correctOption = correctOptionLabel
+      ? question.options.find(
+          (opt) => opt.optionLabel.toUpperCase().trim() === correctOptionLabel
+        )
+      : null;
 
-    if (!correctOption) {
+    if (!correctOption && !question.expectedAnswer) {
       return (
         <div className="text-sm text-muted-foreground italic">
           No answer available
@@ -26,9 +31,9 @@ export function AnswerReveal({ question }: AnswerRevealProps) {
         <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500 mt-0.5 shrink-0" />
         <div className="text-sm">
           <span className="font-medium text-green-700 dark:text-green-400">
-            Correct answer: {correctOption.optionLabel}
+            Correct answer: {correctOption?.optionLabel ?? question.expectedAnswer}
           </span>
-          {correctOption.optionText && (
+          {correctOption?.optionText && (
             <span className="text-green-600 dark:text-green-500">
               {" "}
               — <LatexText text={correctOption.optionText} />

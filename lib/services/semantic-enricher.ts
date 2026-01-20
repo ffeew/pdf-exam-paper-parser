@@ -57,7 +57,7 @@ export interface ExtractedQuestion {
   pageNumber: number;
   marks: number | null;
   section: string | null;
-  options: { label: string; text: string; isCorrect: boolean | null; }[] | null;
+  options: { label: string; text: string }[] | null;
   relatedImageIds: string[];
   expectedAnswer: string | null;
 }
@@ -151,13 +151,12 @@ function mergeResults(
     // Get related images from LLM, or empty array if not determined
     const relatedImageIds = eq?.relatedImageIds || [];
 
-    // Convert options to include isCorrect field
+    // Convert options
     const options = sq.options
       ? sq.options.map((o) => ({
-        label: o.label,
-        text: o.text,
-        isCorrect: null as boolean | null, // We don't know the correct answer
-      }))
+          label: o.label,
+          text: o.text,
+        }))
       : null;
 
     return {

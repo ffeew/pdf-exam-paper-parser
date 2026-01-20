@@ -11,10 +11,6 @@ const groq = createGroq({
 const AnswerOptionSchema = z.object({
   label: z.string().describe("Option label like A, B, C, D"),
   text: z.string().describe("The option text"),
-  isCorrect: z
-    .boolean()
-    .nullable()
-    .describe("Whether this is the correct answer, null if unknown"),
 });
 
 const SectionSchema = z.object({

@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { exams, sections, questions, answerOptions, images } from "@/lib/db/schema";
 import { uploadBuffer } from "@/lib/storage";
@@ -203,7 +203,6 @@ export async function saveExtractedData(
             questionId,
             optionLabel: opt.label,
             optionText: opt.text,
-            isCorrect: opt.isCorrect,
             orderIndex: j,
           });
         }
@@ -290,25 +289,17 @@ async function linkAnswersToQuestions(
     const answerEntry = answerMap.get(normalizedQNum);
     if (!answerEntry) continue;
 
-    if (answerEntry.answerType === "mcq_option" && q.questionType === "mcq") {
-      // For MCQ: Update the correct option's isCorrect field
-      const normalizedAnswer = answerEntry.answer.toUpperCase().trim();
-      await tx
-        .update(answerOptions)
-        .set({ isCorrect: true })
-        .where(
-          and(
-            eq(answerOptions.questionId, questionId),
-            eq(answerOptions.optionLabel, normalizedAnswer)
-          )
-        );
-    } else {
-      // For non-MCQ: Update the expectedAnswer field
-      await tx
-        .update(questions)
-        .set({ expectedAnswer: answerEntry.answer })
-        .where(eq(questions.id, questionId));
-    }
+    // For ALL question types (including MCQ), store the answer in expectedAnswer
+    // For MCQ, this stores the correct option label (e.g., "1", "A")
+    const answerValue =
+      answerEntry.answerType === "mcq_option"
+        ? answerEntry.answer.toUpperCase().trim()
+        : answerEntry.answer;
+
+    await tx
+      .update(questions)
+      .set({ expectedAnswer: answerValue })
+      .where(eq(questions.id, questionId));
   }
 }
 

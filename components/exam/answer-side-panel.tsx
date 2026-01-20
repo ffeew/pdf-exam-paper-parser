@@ -95,10 +95,8 @@ export function AnswerSidePanel({
 		onActiveTabChange("chat");
 	};
 
-	// Check if question has an answer to reveal
-	const hasAnswer = (q: Question) =>
-		q.expectedAnswer ||
-		(q.questionType === "mcq" && q.options.some((opt) => opt.isCorrect));
+	// Check if question has an answer to reveal (expectedAnswer is used for all question types)
+	const hasAnswer = (q: Question) => Boolean(q.expectedAnswer);
 
 	return (
 		<Tabs

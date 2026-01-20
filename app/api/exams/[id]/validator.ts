@@ -5,7 +5,6 @@ export const AnswerOptionSchema = z.object({
   optionLabel: z.string(),
   optionText: z.string(),
   orderIndex: z.number(),
-  isCorrect: z.boolean().nullable(),
 });
 
 export const QuestionImageSchema = z.object({

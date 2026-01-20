@@ -93,11 +93,8 @@ export function QuestionCard({
     onAnswerChange?.(null, optionId);
   };
 
-  // Check if answer key is available for reveal
-  const hasAnswerKey =
-    question.expectedAnswer ||
-    (question.questionType === "mcq" &&
-      question.options.some((opt) => opt.isCorrect));
+  // Check if answer key is available for reveal (expectedAnswer is used for all question types)
+  const hasAnswerKey = Boolean(question.expectedAnswer);
 
   // Check if user has submitted an answer
   const hasUserAnswer = Boolean(localTextAnswer || savedAnswer?.selectedOptionId);

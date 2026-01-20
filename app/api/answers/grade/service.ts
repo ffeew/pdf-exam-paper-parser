@@ -39,7 +39,6 @@ interface QuestionWithOptions {
     id: string;
     optionLabel: string;
     optionText: string;
-    isCorrect: boolean | null;
   }>;
 }
 
@@ -56,7 +55,14 @@ Maximum Marks: ${maxScore}
 `;
 
   if (question.questionType === "mcq") {
-    const correctOption = question.answerOptions.find((o) => o.isCorrect);
+    // Find correct option by matching expectedAnswer (stores the option label like "1", "A")
+    const correctOptionLabel = question.expectedAnswer?.toUpperCase().trim();
+    const correctOption = correctOptionLabel
+      ? question.answerOptions.find(
+          (o) => o.optionLabel.toUpperCase().trim() === correctOptionLabel
+        )
+      : null;
+
     const options = question.answerOptions
       .map((o) => `${o.optionLabel}. ${o.optionText}`)
       .join("\n");
@@ -64,7 +70,7 @@ Maximum Marks: ${maxScore}
     prompt += `Options:
 ${options}
 
-Correct Answer: ${correctOption ? `${correctOption.optionLabel}. ${correctOption.optionText}` : "Not specified"}
+Correct Answer: ${correctOption ? `${correctOption.optionLabel}. ${correctOption.optionText}` : question.expectedAnswer ? `${question.expectedAnswer}` : "Not specified"}
 Student Selected: ${selectedOptionLabel ?? "No selection"}
 `;
   } else {

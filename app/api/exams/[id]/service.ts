@@ -128,7 +128,6 @@ export async function getExamWithQuestions(examId: string, userId: string) {
       optionLabel: opt.optionLabel,
       optionText: opt.optionText,
       orderIndex: opt.orderIndex,
-      isCorrect: opt.isCorrect,
     })),
     images: (imagesByQuestion.get(q.id) || []).map((img) => ({
       id: img.id,

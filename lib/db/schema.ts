@@ -90,7 +90,6 @@ export const answerOptions = sqliteTable("answer_options", {
     .references(() => questions.id, { onDelete: "cascade" }),
   optionLabel: text("option_label").notNull(),
   optionText: text("option_text").notNull(),
-  isCorrect: integer("is_correct", { mode: "boolean" }).default(false),
   orderIndex: integer("order_index").notNull(),
 });
 
