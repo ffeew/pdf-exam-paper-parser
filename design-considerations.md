@@ -88,3 +88,21 @@ This document tracks key design decisions made during development.
 - Bun offers faster install times and script execution
 - However, Turbopack compatibility is essential for fast dev server startup
 - npm provides stable, well-tested behavior with the full Next.js toolchain
+
+---
+
+## 2026-01-20: Answer Key Detection - Checking First and Last Pages
+
+**Decision**: Check both the first 3 pages and last 4 pages for answer keys.
+
+**Reasoning**:
+
+- **Flexibility**: Answer keys can appear at either end of exam papers
+- **Singapore exam papers**: Some place answer keys before the questions
+- **Deduplication**: For short documents, pages are deduplicated to avoid redundant analysis
+
+**Trade-offs considered**:
+
+- Checking more pages increases LLM API cost slightly
+- However, improved accuracy outweighs the marginal cost increase
+- The deduplication logic ensures no duplicate processing

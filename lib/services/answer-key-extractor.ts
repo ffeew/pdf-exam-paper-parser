@@ -23,8 +23,19 @@ const groq = createGroq({
 export async function extractAnswerKey(
   pages: OcrPage[]
 ): Promise<AnswerKeyResult> {
-  // Analyze last 4 pages (or fewer if document is shorter)
-  const pagesToAnalyze = pages.slice(-4);
+  // Check first 3 pages + last 4 pages for answer key
+  // Answer keys can appear at either end of exam papers
+  const firstPages = pages.slice(0, 3);
+  const lastPages = pages.slice(-4);
+
+  // Combine and deduplicate (handles short documents where pages overlap)
+  const pageSet = new Map<number, OcrPage>();
+  for (const page of [...firstPages, ...lastPages]) {
+    pageSet.set(page.pageNumber, page);
+  }
+  const pagesToAnalyze = Array.from(pageSet.values()).sort(
+    (a, b) => a.pageNumber - b.pageNumber
+  );
 
   // Pass 1: Detect if answer key exists
   const detection = await detectAnswerKey(pagesToAnalyze);
