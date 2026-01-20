@@ -4,6 +4,28 @@ import { getDownloadUrl } from "@/lib/storage";
 
 const mistral = new Mistral({ apiKey: env.MISTRAL_API_KEY });
 
+/**
+ * Recursively strips imageBase64 fields from the Mistral OCR response.
+ * Images are already saved to R2, so storing base64 in the database is redundant.
+ */
+function stripImageBase64FromResponse(response: unknown): unknown {
+  if (!response || typeof response !== "object") return response;
+
+  if (Array.isArray(response)) {
+    return response.map(stripImageBase64FromResponse);
+  }
+
+  const obj = response as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === "imageBase64") {
+      continue;
+    }
+    result[key] = stripImageBase64FromResponse(value);
+  }
+  return result;
+}
+
 export interface OcrImage {
   id: string;
   base64: string;
@@ -84,6 +106,6 @@ export async function processDocumentWithOcr(
 
   return {
     pages,
-    rawJson: JSON.stringify(response),
+    rawJson: JSON.stringify(stripImageBase64FromResponse(response)),
   };
 }
