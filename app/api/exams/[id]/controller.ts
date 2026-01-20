@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireAuth } from "@/lib/auth/require-auth";
 import { getExamWithQuestions, getExamStatus } from "./service";
 
-export async function handleGetExam(
-  _request: NextRequest,
-  examId: string
-) {
+export async function handleGetExam(_request: NextRequest, examId: string) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
+    const { user } = authResult;
 
-    const exam = await getExamWithQuestions(examId, session.user.id);
+    const exam = await getExamWithQuestions(examId, user.id);
     if (!exam) {
       return NextResponse.json({ error: "Exam not found" }, { status: 404 });
     }
@@ -28,17 +23,13 @@ export async function handleGetExam(
   }
 }
 
-export async function handleGetExamStatus(
-  _request: NextRequest,
-  examId: string
-) {
+export async function handleGetExamStatus(_request: NextRequest, examId: string) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
+    const { user } = authResult;
 
-    const status = await getExamStatus(examId, session.user.id);
+    const status = await getExamStatus(examId, user.id);
     if (!status) {
       return NextResponse.json({ error: "Exam not found" }, { status: 404 });
     }

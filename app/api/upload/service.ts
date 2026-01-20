@@ -104,9 +104,28 @@ export async function confirmUploadAndCreateExam(
     updatedAt: now,
   });
 
-  // Trigger async processing (fire-and-forget)
-  processExamAsync(examId, data.fileKey).catch((error) => {
+  // Trigger async processing (fire-and-forget with status update on failure)
+  processExamAsync(examId, data.fileKey).catch(async (error) => {
     console.error(`Failed to start processing for exam ${examId}:`, error);
+    // Update exam status to failed so user knows something went wrong
+    try {
+      await db
+        .update(exams)
+        .set({
+          status: "failed",
+          errorMessage:
+            error instanceof Error
+              ? error.message
+              : "Failed to start processing",
+          updatedAt: new Date(),
+        })
+        .where(eq(exams.id, examId));
+    } catch (updateError) {
+      console.error(
+        `Failed to update exam ${examId} status to failed:`,
+        updateError
+      );
+    }
   });
 
   return {

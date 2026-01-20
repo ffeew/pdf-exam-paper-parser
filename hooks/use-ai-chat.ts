@@ -24,12 +24,14 @@ export function useAIChat({
 	const [input, setInput] = useState("");
 	// Track which question we've loaded messages for
 	const loadedForQuestion = useRef<string | null>(null);
+	// Track the expected question to prevent loading stale data
+	const expectedQuestion = useRef<string>(questionNumber);
 
 	// Use a unique chat ID per question to separate conversations
 	const chatId = `${examId}-${questionNumber}`;
 
 	// Fetch persisted chat history
-	const { data: historyData, isLoading: isLoadingHistory } = useChatHistory({
+	const { data: historyData, isLoading: isLoadingHistory, dataUpdatedAt } = useChatHistory({
 		examId,
 		questionNumber,
 	});
@@ -57,8 +59,11 @@ export function useAIChat({
 		transport,
 	});
 
-	// Clear messages when question changes
+	// Clear messages and update expected question when question changes
 	useEffect(() => {
+		// Update expected question immediately
+		expectedQuestion.current = questionNumber;
+
 		// Only clear if we're switching to a different question
 		if (loadedForQuestion.current !== null && loadedForQuestion.current !== questionNumber) {
 			setMessages([]);
@@ -68,6 +73,12 @@ export function useAIChat({
 
 	// Load persisted messages when history data arrives for current question
 	useEffect(() => {
+		// Prevent race condition: only load if data is for the currently expected question
+		// This handles the case where question changes rapidly and stale data arrives late
+		if (expectedQuestion.current !== questionNumber) {
+			return;
+		}
+
 		// Only load if we haven't loaded for this question yet
 		if (loadedForQuestion.current === questionNumber) {
 			return;
@@ -92,7 +103,7 @@ export function useAIChat({
 			})) satisfies UIMessage[];
 			setMessages(initialMessages);
 		}
-	}, [historyData, isLoadingHistory, questionNumber, setMessages]);
+	}, [historyData, isLoadingHistory, questionNumber, setMessages, dataUpdatedAt]);
 
 	// Determine loading state from status
 	const isLoading = status === "submitted" || status === "streaming";

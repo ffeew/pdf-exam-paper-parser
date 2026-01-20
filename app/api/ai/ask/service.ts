@@ -4,6 +4,7 @@ import { env } from "@/lib/config/env";
 import { db } from "@/lib/db";
 import { chatMessages, questions } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { verifyExamOwnership } from "@/lib/services/authorization";
 import type { AIModel, QuestionContext } from "./validator";
 
 const groq = createGroq({
@@ -64,6 +65,9 @@ export async function streamAIResponse(
 	questionContext: QuestionContext,
 	userId: string
 ) {
+	// Verify user owns this exam before proceeding
+	await verifyExamOwnership(examId, userId);
+
 	// Find the question ID for persistence
 	const question = await db.query.questions.findFirst({
 		where: and(

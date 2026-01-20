@@ -57,13 +57,29 @@ export async function getExamWithQuestions(examId: string, userId: string) {
   });
 
   // Generate presigned URLs for all images, preserving original R2 key for mapping
-  const imagesWithUrls = await Promise.all(
+  // Use Promise.allSettled for graceful degradation - don't fail entire request for one bad image
+  const imageResults = await Promise.allSettled(
     allImages.map(async (img) => ({
       ...img,
       originalKey: img.imageUrl, // Keep the R2 key for OCR image ID mapping
       imageUrl: await getDownloadUrl(img.imageUrl, 3600),
     }))
   );
+
+  // Filter to only successfully processed images, log failures
+  const imagesWithUrls = imageResults
+    .filter(
+      (result): result is PromiseFulfilledResult<(typeof allImages)[0] & { originalKey: string }> =>
+        result.status === "fulfilled"
+    )
+    .map((result) => result.value);
+
+  // Log any failed image URL generations for debugging
+  imageResults
+    .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+    .forEach((result) => {
+      console.error("Failed to generate presigned URL for image:", result.reason);
+    });
 
   // Build OCR image ID to presigned URL map for section instruction images
   const imageIdToUrl = new Map<string, string>();

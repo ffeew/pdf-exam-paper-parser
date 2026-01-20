@@ -1,12 +1,37 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AnswerSidePanel } from "./answer-side-panel";
 import { LatexText } from "@/components/ui/latex-text";
 import { cn } from "@/lib/utils";
 import type { Question, Section } from "@/app/api/exams/[id]/validator";
+
+// Simple throttle function for scroll performance
+function throttle<T extends (...args: Parameters<T>) => void>(
+  fn: T,
+  delay: number
+): T {
+  let lastCall = 0;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  return ((...args: Parameters<T>) => {
+    const now = Date.now();
+
+    if (now - lastCall >= delay) {
+      lastCall = now;
+      fn(...args);
+    } else {
+      // Schedule trailing call
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        lastCall = Date.now();
+        fn(...args);
+      }, delay - (now - lastCall));
+    }
+  }) as T;
+}
 
 interface DocumentViewProps {
   examId: string;
@@ -84,12 +109,15 @@ export function DocumentView({ examId, markdown, questions, sections }: Document
       setActiveQuestionNumber(activeQuestion);
     };
 
-    documentEl.addEventListener("scroll", handleScroll, { passive: true });
+    // Throttle scroll handler to run at most every 50ms for better performance
+    const throttledHandleScroll = throttle(handleScroll, 50);
+
+    documentEl.addEventListener("scroll", throttledHandleScroll, { passive: true });
     // Delay initial check to allow refs to be registered
     const timer = setTimeout(handleScroll, 200);
 
     return () => {
-      documentEl.removeEventListener("scroll", handleScroll);
+      documentEl.removeEventListener("scroll", throttledHandleScroll);
       clearTimeout(timer);
     };
   }, [questions]);
@@ -207,6 +235,18 @@ export function DocumentView({ examId, markdown, questions, sections }: Document
     [processChildren]
   );
 
+  // Memoize ReactMarkdown components to prevent unnecessary re-renders
+  const markdownComponents = useMemo(
+    () => ({
+      p: renderParagraph,
+      ol: renderOrderedList,
+      li: renderListItem,
+      td: renderTableCell,
+      th: renderTableCell,
+    }),
+    [renderParagraph, renderOrderedList, renderListItem, renderTableCell]
+  );
+
   return (
     <div className="flex h-full gap-4">
       {/* Document Panel */}
@@ -249,13 +289,7 @@ export function DocumentView({ examId, markdown, questions, sections }: Document
         >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            components={{
-              p: renderParagraph,
-              ol: renderOrderedList,
-              li: renderListItem,
-              td: renderTableCell,
-              th: renderTableCell,
-            }}
+            components={markdownComponents}
           >
             {markdown}
           </ReactMarkdown>

@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireAuth } from "@/lib/auth/require-auth";
 import { GetChatHistoryQuerySchema, ClearChatRequestSchema } from "./validator";
 import { getChatHistory, clearChatHistory } from "./service";
+import { AuthorizationError } from "@/lib/services/authorization";
 
 export async function handleGetChatHistory(request: NextRequest) {
 	try {
-		// Auth check
-		const session = await auth.api.getSession({ headers: await headers() });
-		if (!session?.user) {
-			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-		}
+		const authResult = await requireAuth();
+		if ("error" in authResult) return authResult.error;
+		const { user } = authResult;
 
 		// Parse query params
 		const url = new URL(request.url);
@@ -35,11 +33,14 @@ export async function handleGetChatHistory(request: NextRequest) {
 		const messages = await getChatHistory(
 			parseResult.data.examId,
 			parseResult.data.questionNumber,
-			session.user.id
+			user.id
 		);
 
 		return NextResponse.json({ messages });
 	} catch (error) {
+		if (error instanceof AuthorizationError) {
+			return NextResponse.json({ error: error.message }, { status: 403 });
+		}
 		console.error("Error fetching chat history:", error);
 		return NextResponse.json(
 			{ error: "Internal server error" },
@@ -50,11 +51,9 @@ export async function handleGetChatHistory(request: NextRequest) {
 
 export async function handleClearChat(request: NextRequest) {
 	try {
-		// Auth check
-		const session = await auth.api.getSession({ headers: await headers() });
-		if (!session?.user) {
-			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-		}
+		const authResult = await requireAuth();
+		if ("error" in authResult) return authResult.error;
+		const { user } = authResult;
 
 		// Parse request body
 		const body = await request.json();
@@ -73,11 +72,14 @@ export async function handleClearChat(request: NextRequest) {
 		const deletedCount = await clearChatHistory(
 			parseResult.data.examId,
 			parseResult.data.questionNumber,
-			session.user.id
+			user.id
 		);
 
 		return NextResponse.json({ success: true, deletedCount });
 	} catch (error) {
+		if (error instanceof AuthorizationError) {
+			return NextResponse.json({ error: error.message }, { status: 403 });
+		}
 		console.error("Error clearing chat:", error);
 		return NextResponse.json(
 			{ error: "Internal server error" },

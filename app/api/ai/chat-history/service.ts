@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { chatMessages, questions } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
+import { verifyExamOwnership } from "@/lib/services/authorization";
 import type { ChatHistoryMessage } from "./validator";
 
 export async function getChatHistory(
@@ -8,6 +9,9 @@ export async function getChatHistory(
 	questionNumber: string,
 	userId: string
 ): Promise<ChatHistoryMessage[]> {
+	// Verify user owns this exam before proceeding
+	await verifyExamOwnership(examId, userId);
+
 	// First, find the question ID by examId + questionNumber
 	const question = await db.query.questions.findFirst({
 		where: and(
@@ -50,6 +54,9 @@ export async function clearChatHistory(
 	questionNumber: string,
 	userId: string
 ): Promise<number> {
+	// Verify user owns this exam before proceeding
+	await verifyExamOwnership(examId, userId);
+
 	// Find the question ID
 	const question = await db.query.questions.findFirst({
 		where: and(

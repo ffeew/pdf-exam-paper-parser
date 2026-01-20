@@ -24,11 +24,44 @@ export const QuestionContextSchema = z.object({
 });
 export type QuestionContext = z.infer<typeof QuestionContextSchema>;
 
-// Request schema - uses AI SDK UIMessage format (passthrough for messages)
+// UIMessage part schemas - matches AI SDK's message part types
+const TextPartSchema = z.object({
+	type: z.literal("text"),
+	text: z.string(),
+});
+
+const ToolInvocationPartSchema = z.object({
+	type: z.literal("tool-invocation"),
+	toolInvocationId: z.string(),
+	toolName: z.string(),
+	args: z.unknown(),
+	state: z.enum(["partial-call", "call", "result"]),
+	result: z.unknown().optional(),
+});
+
+const UIMessagePartSchema = z.discriminatedUnion("type", [
+	TextPartSchema,
+	ToolInvocationPartSchema,
+]);
+
+// UIMessage schema - validates structure of AI SDK messages
+const UIMessageSchema = z.object({
+	id: z.string().min(1),
+	role: z.enum(["user", "assistant", "system"]),
+	content: z.string(),
+	parts: z.array(UIMessagePartSchema),
+	createdAt: z.coerce.date().optional(),
+});
+
+// Request schema - uses AI SDK UIMessage format with proper validation
 export const AskRequestSchema = z.object({
 	examId: z.string().min(1),
 	questionNumber: z.string().min(1),
-	messages: z.array(z.any()).min(1).max(21) as z.ZodType<UIMessage[]>,
+	messages: z
+		.array(UIMessageSchema)
+		.min(1)
+		.max(21)
+		.transform((msgs) => msgs as UIMessage[]),
 	model: AIModelSchema.default("kimi-k2"),
 	questionContext: QuestionContextSchema,
 });

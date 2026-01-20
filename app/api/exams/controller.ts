@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireAuth } from "@/lib/auth/require-auth";
 import { listExams } from "./service";
 import { ListExamsQuerySchema, type ListExamsResponse } from "./validator";
 
@@ -8,10 +7,9 @@ export async function handleListExams(
   request: NextRequest
 ): Promise<NextResponse<ListExamsResponse | { error: string }>> {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
+    const { user } = authResult;
 
     // Parse query params
     const searchParams = request.nextUrl.searchParams;
@@ -27,7 +25,7 @@ export async function handleListExams(
       );
     }
 
-    const { exams, total } = await listExams(session.user.id, queryResult.data);
+    const { exams, total } = await listExams(user.id, queryResult.data);
 
     return NextResponse.json({
       exams,

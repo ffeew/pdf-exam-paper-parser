@@ -106,24 +106,6 @@ export async function saveExtractedData(
   ocrResult: OcrResult,
   answerKey?: AnswerKeyResult
 ) {
-  // Update exam metadata (including answer key info if present)
-  await db
-    .update(exams)
-    .set({
-      subject: extracted.subject,
-      grade: extracted.grade,
-      schoolName: extracted.schoolName,
-      totalMarks: extracted.totalMarks,
-      hasAnswerKey: answerKey?.found ?? false,
-      answerKeyConfidence: answerKey?.found ? answerKey.confidence : null,
-      answerKeyPageNumbers:
-        answerKey?.sourcePageNumbers && answerKey.sourcePageNumbers.length > 0
-          ? JSON.stringify(answerKey.sourcePageNumbers)
-          : null,
-      updatedAt: new Date(),
-    })
-    .where(eq(exams.id, examId));
-
   // Collect image IDs referenced in section instructions (these bypass admin filter)
   const requiredImageIds = new Set<string>();
   if (extracted.sections) {
@@ -135,135 +117,158 @@ export async function saveExtractedData(
     }
   }
 
-  // Upload extracted images to R2 and get their keys + page numbers
+  // Upload extracted images to R2 BEFORE the transaction (external operation)
   const imageMap = await uploadExtractedImages(examId, ocrResult, requiredImageIds);
 
-  // Create sections and build questionNumber -> sectionId map
-  const questionToSectionMap = new Map<string, string>();
-  const now = new Date();
+  // Wrap all database operations in a transaction for data integrity
+  await db.transaction(async (tx) => {
+    // Update exam metadata (including answer key info if present)
+    await tx
+      .update(exams)
+      .set({
+        subject: extracted.subject,
+        grade: extracted.grade,
+        schoolName: extracted.schoolName,
+        totalMarks: extracted.totalMarks,
+        hasAnswerKey: answerKey?.found ?? false,
+        answerKeyConfidence: answerKey?.found ? answerKey.confidence : null,
+        answerKeyPageNumbers:
+          answerKey?.sourcePageNumbers && answerKey.sourcePageNumbers.length > 0
+            ? JSON.stringify(answerKey.sourcePageNumbers)
+            : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(exams.id, examId));
 
-  if (extracted.sections && extracted.sections.length > 0) {
-    for (let i = 0; i < extracted.sections.length; i++) {
-      const s = extracted.sections[i];
-      const sectionId = randomUUID();
+    // Create sections and build questionNumber -> sectionId map
+    const questionToSectionMap = new Map<string, string>();
+    const now = new Date();
 
-      await db.insert(sections).values({
-        id: sectionId,
+    if (extracted.sections && extracted.sections.length > 0) {
+      for (let i = 0; i < extracted.sections.length; i++) {
+        const s = extracted.sections[i];
+        const sectionId = randomUUID();
+
+        await tx.insert(sections).values({
+          id: sectionId,
+          examId,
+          sectionName: s.sectionName,
+          instructions: s.instructions,
+          orderIndex: i,
+          createdAt: now,
+        });
+
+        // Map each question number to this section
+        for (const qNum of s.questionNumbers) {
+          questionToSectionMap.set(normalizeQuestionNumber(qNum), sectionId);
+        }
+      }
+    }
+
+    // Map from extraction index to database questionId
+    const questionIdByIndex = new Map<number, string>();
+
+    // Insert questions and track their IDs
+    for (let i = 0; i < extracted.questions.length; i++) {
+      const q = extracted.questions[i];
+      const questionId = randomUUID();
+
+      // Look up sectionId from the map
+      const normalizedQNum = normalizeQuestionNumber(q.questionNumber);
+      const sectionId = questionToSectionMap.get(normalizedQNum) || null;
+
+      await tx.insert(questions).values({
+        id: questionId,
         examId,
-        sectionName: s.sectionName,
-        instructions: s.instructions,
+        sectionId,
+        questionNumber: q.questionNumber,
+        questionText: q.questionText,
+        questionType: q.questionType,
+        marks: q.marks,
+        context: q.context || null,
+        expectedAnswer: q.expectedAnswer,
         orderIndex: i,
         createdAt: now,
       });
 
-      // Map each question number to this section
-      for (const qNum of s.questionNumbers) {
-        questionToSectionMap.set(normalizeQuestionNumber(qNum), sectionId);
+      // Store mapping for image association
+      questionIdByIndex.set(i, questionId);
+
+      // Insert answer options for MCQ
+      if (q.questionType === "mcq" && q.options) {
+        for (let j = 0; j < q.options.length; j++) {
+          const opt = q.options[j];
+          await tx.insert(answerOptions).values({
+            id: randomUUID(),
+            questionId,
+            optionLabel: opt.label,
+            optionText: opt.text,
+            isCorrect: opt.isCorrect,
+            orderIndex: j,
+          });
+        }
       }
     }
-  }
 
-  // Map from extraction index to database questionId
-  const questionIdByIndex = new Map<number, string>();
+    // Associate images with questions using relatedImageIds from LLM extraction
+    const associatedImageIds = new Set<string>();
 
-  // Insert questions and track their IDs
-  for (let i = 0; i < extracted.questions.length; i++) {
-    const q = extracted.questions[i];
-    const questionId = randomUUID();
+    for (let i = 0; i < extracted.questions.length; i++) {
+      const q = extracted.questions[i];
+      const questionId = questionIdByIndex.get(i)!;
 
-    // Look up sectionId from the map
-    const normalizedQNum = normalizeQuestionNumber(q.questionNumber);
-    const sectionId = questionToSectionMap.get(normalizedQNum) || null;
+      // Link each related image to this question
+      for (let orderIdx = 0; orderIdx < q.relatedImageIds.length; orderIdx++) {
+        const imageId = q.relatedImageIds[orderIdx];
+        const uploadedImage = imageMap.get(imageId);
+        if (!uploadedImage) continue;
 
-    await db.insert(questions).values({
-      id: questionId,
-      examId,
-      sectionId,
-      questionNumber: q.questionNumber,
-      questionText: q.questionText,
-      questionType: q.questionType,
-      marks: q.marks,
-      context: q.context || null,
-      expectedAnswer: q.expectedAnswer,
-      orderIndex: i,
-      createdAt: now,
-    });
-
-    // Store mapping for image association
-    questionIdByIndex.set(i, questionId);
-
-    // Insert answer options for MCQ
-    if (q.questionType === "mcq" && q.options) {
-      for (let j = 0; j < q.options.length; j++) {
-        const opt = q.options[j];
-        await db.insert(answerOptions).values({
+        await tx.insert(images).values({
           id: randomUUID(),
+          examId,
           questionId,
-          optionLabel: opt.label,
-          optionText: opt.text,
-          isCorrect: opt.isCorrect,
-          orderIndex: j,
+          imageUrl: uploadedImage.key,
+          imageType: "question_diagram",
+          orderIndex: orderIdx,
+          createdAt: new Date(),
         });
+        associatedImageIds.add(imageId);
       }
     }
-  }
 
-  // Associate images with questions using relatedImageIds from LLM extraction
-  const associatedImageIds = new Set<string>();
+    // Remaining images (not claimed by any question) become exam-level images
+    let examImageOrder = 0;
+    for (const [imageId, uploadedImage] of imageMap) {
+      if (associatedImageIds.has(imageId)) continue;
 
-  for (let i = 0; i < extracted.questions.length; i++) {
-    const q = extracted.questions[i];
-    const questionId = questionIdByIndex.get(i)!;
-
-    // Link each related image to this question
-    for (let orderIdx = 0; orderIdx < q.relatedImageIds.length; orderIdx++) {
-      const imageId = q.relatedImageIds[orderIdx];
-      const uploadedImage = imageMap.get(imageId);
-      if (!uploadedImage) continue;
-
-      await db.insert(images).values({
+      await tx.insert(images).values({
         id: randomUUID(),
         examId,
-        questionId,
+        questionId: null,
         imageUrl: uploadedImage.key,
-        imageType: "question_diagram",
-        orderIndex: orderIdx,
+        imageType: "exam_content",
+        orderIndex: examImageOrder++,
         createdAt: new Date(),
       });
-      associatedImageIds.add(imageId);
     }
-  }
 
-  // Remaining images (not claimed by any question) become exam-level images
-  let examImageOrder = 0;
-  for (const [imageId, uploadedImage] of imageMap) {
-    if (associatedImageIds.has(imageId)) continue;
-
-    await db.insert(images).values({
-      id: randomUUID(),
-      examId,
-      questionId: null,
-      imageUrl: uploadedImage.key,
-      imageType: "exam_content",
-      orderIndex: examImageOrder++,
-      createdAt: new Date(),
-    });
-  }
-
-  // Link answers from answer key to questions
-  if (answerKey?.found && answerKey.entries.length > 0) {
-    await linkAnswersToQuestions(
-      extracted.questions,
-      questionIdByIndex,
-      answerKey
-    );
-  }
+    // Link answers from answer key to questions
+    if (answerKey?.found && answerKey.entries.length > 0) {
+      await linkAnswersToQuestions(
+        tx,
+        extracted.questions,
+        questionIdByIndex,
+        answerKey
+      );
+    }
+  });
 }
 
 /**
  * Links answers from the answer key to the corresponding questions in the database.
  */
 async function linkAnswersToQuestions(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   extractedQuestions: ExtractedExam["questions"],
   questionIdByIndex: Map<number, string>,
   answerKey: AnswerKeyResult
@@ -288,7 +293,7 @@ async function linkAnswersToQuestions(
     if (answerEntry.answerType === "mcq_option" && q.questionType === "mcq") {
       // For MCQ: Update the correct option's isCorrect field
       const normalizedAnswer = answerEntry.answer.toUpperCase().trim();
-      await db
+      await tx
         .update(answerOptions)
         .set({ isCorrect: true })
         .where(
@@ -299,7 +304,7 @@ async function linkAnswersToQuestions(
         );
     } else {
       // For non-MCQ: Update the expectedAnswer field
-      await db
+      await tx
         .update(questions)
         .set({ expectedAnswer: answerEntry.answer })
         .where(eq(questions.id, questionId));
