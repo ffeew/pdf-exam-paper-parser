@@ -93,12 +93,14 @@ export async function getExamWithQuestions(examId: string, userId: string) {
     marks: q.marks,
     section: q.section,
     instructions: q.instructions,
+    expectedAnswer: q.expectedAnswer,
     orderIndex: q.orderIndex,
     options: (optionsByQuestion.get(q.id) || []).map((opt) => ({
       id: opt.id,
       optionLabel: opt.optionLabel,
       optionText: opt.optionText,
       orderIndex: opt.orderIndex,
+      isCorrect: opt.isCorrect,
     })),
     images: (imagesByQuestion.get(q.id) || []).map((img) => ({
       id: img.id,
@@ -116,6 +118,8 @@ export async function getExamWithQuestions(examId: string, userId: string) {
     totalMarks: exam.totalMarks,
     status: exam.status,
     errorMessage: exam.errorMessage,
+    hasAnswerKey: exam.hasAnswerKey,
+    answerKeyConfidence: exam.answerKeyConfidence,
     createdAt: exam.createdAt.toISOString(),
     questions: questionsWithDetails,
     examImages: examLevelImages.map((img) => ({

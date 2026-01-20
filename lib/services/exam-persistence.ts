@@ -1,10 +1,11 @@
 import { randomUUID } from "crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { exams, questions, answerOptions, images } from "@/lib/db/schema";
 import { uploadBuffer } from "@/lib/storage";
 import type { ExtractedExam } from "./question-extractor";
 import type { OcrResult } from "./ocr";
+import type { AnswerKeyResult } from "./answer-key-validator";
 
 function getExtension(mimeType: string): string {
   const map: Record<string, string> = {
@@ -52,9 +53,10 @@ async function uploadExtractedImages(
 export async function saveExtractedData(
   examId: string,
   extracted: ExtractedExam,
-  ocrResult: OcrResult
+  ocrResult: OcrResult,
+  answerKey?: AnswerKeyResult
 ) {
-  // Update exam metadata
+  // Update exam metadata (including answer key info if present)
   await db
     .update(exams)
     .set({
@@ -62,6 +64,8 @@ export async function saveExtractedData(
       grade: extracted.grade,
       schoolName: extracted.schoolName,
       totalMarks: extracted.totalMarks,
+      hasAnswerKey: answerKey?.found ?? false,
+      answerKeyConfidence: answerKey?.found ? answerKey.confidence : null,
       updatedAt: new Date(),
     })
     .where(eq(exams.id, examId));
@@ -152,4 +156,72 @@ export async function saveExtractedData(
       createdAt: new Date(),
     });
   }
+
+  // Link answers from answer key to questions
+  if (answerKey?.found && answerKey.entries.length > 0) {
+    await linkAnswersToQuestions(
+      extracted.questions,
+      questionIdByIndex,
+      answerKey
+    );
+  }
+}
+
+/**
+ * Links answers from the answer key to the corresponding questions in the database.
+ */
+async function linkAnswersToQuestions(
+  extractedQuestions: ExtractedExam["questions"],
+  questionIdByIndex: Map<number, string>,
+  answerKey: AnswerKeyResult
+) {
+  // Build a map of question number -> answer key entry
+  const answerMap = new Map(
+    answerKey.entries.map((entry) => [
+      normalizeQuestionNumber(entry.questionNumber),
+      entry,
+    ])
+  );
+
+  for (let i = 0; i < extractedQuestions.length; i++) {
+    const q = extractedQuestions[i];
+    const questionId = questionIdByIndex.get(i);
+    if (!questionId) continue;
+
+    const normalizedQNum = normalizeQuestionNumber(q.questionNumber);
+    const answerEntry = answerMap.get(normalizedQNum);
+    if (!answerEntry) continue;
+
+    if (answerEntry.answerType === "mcq_option" && q.questionType === "mcq") {
+      // For MCQ: Update the correct option's isCorrect field
+      const normalizedAnswer = answerEntry.answer.toUpperCase().trim();
+      await db
+        .update(answerOptions)
+        .set({ isCorrect: true })
+        .where(
+          and(
+            eq(answerOptions.questionId, questionId),
+            eq(answerOptions.optionLabel, normalizedAnswer)
+          )
+        );
+    } else {
+      // For non-MCQ: Update the expectedAnswer field
+      await db
+        .update(questions)
+        .set({ expectedAnswer: answerEntry.answer })
+        .where(eq(questions.id, questionId));
+    }
+  }
+}
+
+/**
+ * Normalizes question numbers for matching.
+ * Handles variations like "1", "1.", "Q1", "Qn 1", "1a", "1(a)", etc.
+ */
+function normalizeQuestionNumber(qNum: string): string {
+  return qNum
+    .toLowerCase()
+    .replace(/^(q|qn|question)\.?\s*/i, "") // Remove Q/Qn/Question prefix
+    .replace(/[\(\)\.\s]/g, "") // Remove parentheses, dots, spaces
+    .trim();
 }

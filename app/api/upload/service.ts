@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { exams } from "@/lib/db/schema";
 import { getUploadUrl, fileExists, deleteFile } from "@/lib/storage";
@@ -24,7 +24,11 @@ export async function checkFileHashExists(
   userId: string
 ): Promise<CheckHashResponse> {
   const existing = await db.query.exams.findFirst({
-    where: and(eq(exams.userId, userId), eq(exams.fileHash, fileHash)),
+    where: and(
+      eq(exams.userId, userId),
+      eq(exams.fileHash, fileHash),
+      ne(exams.status, "failed")
+    ),
     columns: {
       id: true,
       filename: true,
@@ -69,6 +73,20 @@ export async function confirmUploadAndCreateExam(
       message: "This file has already been uploaded.",
       isDuplicate: true,
     };
+  }
+
+  // Check for and clean up any failed exam with the same hash
+  const failedExam = await db.query.exams.findFirst({
+    where: and(
+      eq(exams.userId, userId),
+      eq(exams.fileHash, data.fileHash),
+      eq(exams.status, "failed")
+    ),
+    columns: { id: true },
+  });
+
+  if (failedExam) {
+    await db.delete(exams).where(eq(exams.id, failedExam.id));
   }
 
   const examId = randomUUID();

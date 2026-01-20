@@ -25,6 +25,10 @@ export const exams = sqliteTable("exams", {
     .default("pending"),
   errorMessage: text("error_message"),
   rawOcrResult: text("raw_ocr_result"),
+  hasAnswerKey: integer("has_answer_key", { mode: "boolean" }).default(false),
+  answerKeyConfidence: text("answer_key_confidence", {
+    enum: ["high", "medium", "low"],
+  }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });

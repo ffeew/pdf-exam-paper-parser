@@ -5,6 +5,7 @@ export const AnswerOptionSchema = z.object({
   optionLabel: z.string(),
   optionText: z.string(),
   orderIndex: z.number(),
+  isCorrect: z.boolean().nullable(),
 });
 
 export const QuestionImageSchema = z.object({
@@ -21,6 +22,7 @@ export const QuestionSchema = z.object({
   marks: z.number().nullable(),
   section: z.string().nullable(),
   instructions: z.string().nullable(),
+  expectedAnswer: z.string().nullable(),
   orderIndex: z.number(),
   options: z.array(AnswerOptionSchema),
   images: z.array(QuestionImageSchema),
@@ -35,6 +37,8 @@ export const ExamWithQuestionsSchema = z.object({
   totalMarks: z.number().nullable(),
   status: z.enum(["pending", "processing", "completed", "failed"]),
   errorMessage: z.string().nullable(),
+  hasAnswerKey: z.boolean().nullable(),
+  answerKeyConfidence: z.enum(["high", "medium", "low"]).nullable(),
   createdAt: z.string(),
   questions: z.array(QuestionSchema),
   examImages: z.array(QuestionImageSchema),
