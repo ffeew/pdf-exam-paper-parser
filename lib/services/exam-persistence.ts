@@ -117,7 +117,7 @@ export async function saveExtractedData(
       marks: q.marks,
       section: q.section,
       sectionInstructions: q.sectionInstructions || null,
-      instructions: q.instructions,
+      context: q.context || null,
       expectedAnswer: q.expectedAnswer,
       orderIndex: i,
       createdAt: now,

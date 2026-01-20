@@ -94,7 +94,7 @@ export async function getExamWithQuestions(examId: string, userId: string) {
     marks: q.marks,
     section: q.section,
     sectionInstructions: q.sectionInstructions,
-    instructions: q.instructions,
+    context: q.context,
     expectedAnswer: q.expectedAnswer,
     orderIndex: q.orderIndex,
     options: (optionsByQuestion.get(q.id) || []).map((opt) => ({

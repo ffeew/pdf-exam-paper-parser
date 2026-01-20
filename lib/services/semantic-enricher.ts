@@ -57,7 +57,6 @@ export interface ExtractedQuestion {
   pageNumber: number;
   marks: number | null;
   section: string | null;
-  instructions: string | null;
   options: { label: string; text: string; isCorrect: boolean | null; }[] | null;
   relatedImageIds: string[];
   expectedAnswer: string | null;
@@ -89,35 +88,21 @@ Question ${i + 1}:
     })
     .join("\n");
 
-  const systemPrompt = `You are analyzing Singapore Primary school exam papers. The structural data has already been extracted programmatically. Your task is to provide ONLY the semantic understanding that requires interpretation.
+  const systemPrompt = `Analyze Singapore Primary school exam questions. Structural data is already extracted - provide only semantic understanding.
 
-For each question, determine:
+For each question:
 
-1. questionType: Based on the question text and options:
-   - "mcq": Has multiple choice options (A, B, C, D)
-   - "fill_blank": Has blank spaces to fill (underlines, boxes, "_____")
-   - "short_answer": Requires a single word, number, or short phrase
-   - "long_answer": Requires explanation, working, or multiple sentences
+1. questionType: Classify based on question text and options.
 
-2. relatedImageIds: From the nearby images, select ONLY those that are:
-   - Diagrams, figures, charts, graphs, shapes needed to answer the question
+2. relatedImageIds: Select ONLY images needed to answer the question (diagrams, figures, charts, graphs).
 
-   EXCLUDE (do NOT include):
-   - Marks tally boxes (small boxes at page edges showing scores like "4" or "/10")
-   - Score boxes, grading boxes
+   EXCLUDE:
+   - Marks tally boxes, score boxes, grading boxes
    - Logos, watermarks, school emblems
-   - Answer lines, ruled spaces, blank boxes for writing
-   - Headers, footers, page numbers
-   - Decorative borders or separators
+   - Answer lines, ruled spaces, blank writing boxes
+   - Headers, footers, page numbers, decorative elements
 
-   If unsure whether an image is needed, EXCLUDE it.
-
-3. expectedAnswer: Only if the answer is explicitly shown in the text
-
-Also confirm/provide:
-- subject: The exam subject (Math, English, Chinese, Science, etc.)
-- grade: The grade level (e.g., "Primary 4")
-- schoolName: The school name if visible`;
+   When unsure, EXCLUDE the image.`;
 
   const { output } = await generateText({
     model: groq("moonshotai/kimi-k2-instruct-0905"),
@@ -182,7 +167,6 @@ function mergeResults(
       pageNumber: sq.pageNumber,
       marks: sq.marks,
       section: sq.section,
-      instructions: sq.instructions,
       options,
       relatedImageIds,
       expectedAnswer: eq?.expectedAnswer || null,

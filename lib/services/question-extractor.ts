@@ -39,10 +39,10 @@ const QuestionSchema = z.object({
   sectionInstructions: z
     .string()
     .describe("Section instructions on FIRST question only, empty string for others"),
-  instructions: z
+  context: z
     .string()
     .nullable()
-    .describe("Question-specific instructions that only apply to THIS question, null if none"),
+    .describe("Contextual passage, sentence, or reference text needed to answer THIS specific question. Different from instructions (how to answer) and sectionInstructions (shared content for multiple questions). Examples: vocabulary-in-context sentences with highlighted words, grammar examples with errors to identify."),
   options: z
     .array(AnswerOptionSchema)
     .nullable()
@@ -81,96 +81,64 @@ export async function extractQuestionsWithLlm(
     })
     .join("\n\n");
 
-  const systemPrompt = `You are an expert at extracting structured information from exam papers. You will receive OCR output from Singapore Primary school exam papers and must extract all questions into a structured JSON format.
+  const systemPrompt = `You are extracting questions from Singapore Primary school exam papers. The document is organized by pages with "--- Page N ---" headers.
 
-The document is organized by pages, marked with "--- Page N ---" headers.
+CRITICAL RULES:
 
-For each question:
-1. Identify the question number (e.g., "1", "2a", "2b", "3(i)")
-2. Extract the question text:
-   - IMPORTANT for MCQs: Remove inline options from the question text and replace with a blank
-   - Chinese MCQ example: "不 (1馆 2管 3官 4观) 怎么说" → questionText: "不______怎么说"
-   - The options are extracted separately, so do NOT include them in questionText
-   - For English MCQs, do NOT include options A, B, C, D in the question text
-3. Determine the question type:
-   - "mcq": Multiple choice with options A, B, C, D (or similar)
-   - "fill_blank": Fill in the blank questions (has underlined spaces or boxes)
-   - "short_answer": Questions requiring a word, number, or short phrase
-   - "long_answer": Questions requiring explanation, working, or longer responses
-4. CRITICAL: Identify the page number where the question appears (look at the "--- Page N ---" header above the question)
-5. Extract marks if shown (usually in parentheses like "(2 marks)" or "[2]")
-6. Identify sections and their instructions:
-   - Section title: The header like "一、辨字测验 (2 题 4 分)", "Section A", or "Part 1"
-   - Section instructions: Text that tells students HOW to answer questions in that section
-     Example: "从各题所提供的四个选项中，选出正确的答案。" (Choose the correct answer from the four options)
-   - IMPORTANT: Only include sectionInstructions on the FIRST question of each section
-   - Later questions in the same section should have sectionInstructions as empty string ""
-   - Chinese format: Look for "一、二、三、四" numbering followed by instruction text
-   - English format: Look for "Section A/B/C" or "Part 1/2/3" followed by instruction text
-7. For MCQ, extract all options with their labels (A, B, C, D)
-8. Extract any question-specific instructions (instructions that only apply to one question, not the whole section)
-9. CRITICAL - Link images to questions: The markdown contains image references like ![img-0.jpeg](img-0.jpeg).
-   - Look for these image references in the markdown text
-   - If an image appears within or immediately after a question's text, add its ID to the relatedImageIds array
-   - The image ID is the filename part (e.g., "img-0.jpeg", "img-1.jpeg")
-   - Only include images that are diagrams, figures, or visual elements relevant to answering the question
-   - Do NOT include images that are clearly logos, watermarks, headers, footers, or decorative elements
-   - If no images are related to a question, use an empty array []
-10. CRITICAL - Include all shared context in sectionInstructions:
-   - sectionInstructions should contain ALL information students need to answer questions in that section
-   - This includes: word banks, answer options, reference tables, reading passages, formulas, or any other shared content
+1. MCQ QUESTION TEXT - Remove inline options and replace with blank:
+   - Chinese: "不 (1馆 2管 3官 4观) 怎么说" → questionText: "不______怎么说"
+   - English: Do NOT include "A, B, C, D" options in questionText (extract to options array)
 
-   READING COMPREHENSION PASSAGES:
-   - For comprehension sections, you MUST include the COMPLETE passage text in sectionInstructions
-   - Do NOT summarize or excerpt - include the ENTIRE passage word-for-word
-   - Students cannot answer comprehension questions without the full passage
-   - Example: If the passage is about "Ming and his friends playing near the river bank", include EVERY paragraph of that passage
+2. SECTION INSTRUCTIONS - Include on FIRST question only:
+   - Section formats: Chinese "一、辨字测验", English "Section A", "Part 1"
+   - Later questions in same section: sectionInstructions = ""
+   - MUST include ALL shared context students need: word banks, reading passages, reference tables, cloze text
+   - For comprehension: Include the COMPLETE passage word-for-word (not summarized)
 
-   OTHER SHARED CONTENT:
-   - Word banks: Include all options, e.g., "(A) he, (B) it, (C) she, (D) they"
-   - Reference tables: Include the complete table data
-   - Cloze passages: Include the full text with blanks
+3. SUB-QUESTIONS - Extract as separate questions:
+   Original: "21. List three toys Ming made. [3m] (i)___ (ii)___ (iii)___"
 
-   - The goal is that a student should be able to answer any question using only the questionText + sectionInstructions
+   CORRECT:
+   - 21i: questionText="List the first toy." | sectionInstructions="List three toys Ming made."
+   - 21ii: questionText="List the second toy." | sectionInstructions=""
+   - 21iii: questionText="List the third toy." | sectionInstructions=""
 
-11. CRITICAL - Handle parent questions with sub-parts correctly:
-   - When a question has sub-parts (e.g., 21i, 21ii, 21iii or 3a, 3b, 3c), extract them as separate questions
-   - The PARENT question text should go in sectionInstructions of the FIRST sub-question only
-   - Each sub-question's questionText should contain ONLY its specific instruction, NOT the parent text
+   Another example - "5. Look at the graph: (a) Highest value? (b) Lowest value?"
+   - 5a: questionText="What is the highest value?" | sectionInstructions="Look at the graph above..."
+   - 5b: questionText="What is the lowest value?" | sectionInstructions=""
 
-   EXAMPLE - Question 21 with parts i, ii, iii:
-   Original: "21. List three toys that Ming and his friends made out of recyclable materials. [3 marks]
-              (i) _________ (ii) _________ (iii) _________"
+4. IMAGES - Link only content images (diagrams, figures, charts):
+   - Image refs in markdown: ![img-0.jpeg](img-0.jpeg)
+   - EXCLUDE: logos, watermarks, headers, footers, decorative elements
 
-   CORRECT extraction:
-   - Question 21i: questionText = "List the first toy." | sectionInstructions = "List three toys that Ming and his friends made out of recyclable materials."
-   - Question 21ii: questionText = "List the second toy." | sectionInstructions = ""
-   - Question 21iii: questionText = "List the third toy." | sectionInstructions = ""
+5. QUESTION-SPECIFIC CONTEXT - Extract contextual content needed to answer individual questions:
+   - Use "context" field for sentences/passages that apply to ONE question only
+   - Use "sectionInstructions" for content shared across MULTIPLE questions
 
-   WRONG extraction (DO NOT do this):
-   - Question 21i: questionText = "List the first toy. List three toys that Ming and his friends made..." (redundant!)
+   EXAMPLES OF CONTEXT:
+   - Vocabulary-in-context: "He was **delighted** that he was moving fast and was **confident** that he would be the winner."
+     (With labels: "(A) delighted | (B) confident")
+   - Grammar correction: "She goed to the store yesterday."
+   - Reference sentences: The specific sentence a question asks about
 
-   ANOTHER EXAMPLE - Question 5 with parts a, b:
-   Original: "5. Look at the graph above and answer the following:
-              (a) What is the highest value?
-              (b) What is the lowest value?"
+   FORMATTING CONTEXT:
+   - Use **bold** for underlined or emphasized words
+   - Include option labels if they appear in the passage
+   - Preserve the exact text from the document
 
-   CORRECT extraction:
-   - Question 5a: questionText = "What is the highest value?" | sectionInstructions = "Look at the graph above and answer the following:"
-   - Question 5b: questionText = "What is the lowest value?" | sectionInstructions = ""
+6. READING COMPREHENSION PASSAGES - Link passage images to FIRST question in section:
+   - For comprehension sections (阅读理解, comprehension, reading passage), the passage may be an IMAGE
+   - Look for images containing: text passages, notices, flyers, letters, articles, stories
+   - Link these passage images to the FIRST question in that section via relatedImageIds
+   - This ensures the passage displays with the questions that reference it
 
-Also extract metadata about the exam:
-- Subject (Math, English, Chinese, Science, etc.)
-- Grade level (Primary 1-6)
-- School name if visible on the paper
-- Total marks if shown
+   EXAMPLE:
+   - Section "四、阅读理解一" has an image of a notice (e.g., 植物园欢乐游)
+   - Questions 9, 10, 11 ask about this notice
+   - Link the notice image to Question 9's relatedImageIds: ["img-X.jpeg"]
+   - Questions 10, 11 will see the image displayed above Question 9
 
-Important notes:
-- Be thorough - extract ALL questions from the document
-- Preserve the exact question numbering used in the exam
-- Always set the pageNumber field - this is required for linking images to questions
-- For fill-in-the-blank questions, include the blanks in the question text using underscores (e.g., "The capital of France is _____")
-- If you can't determine something, use null`;
+   IMPORTANT: If a reading passage appears as an image near the section header, it belongs to ALL questions in that section - link it to the FIRST question only`;
 
   const { output } = await generateText({
     model: groq("moonshotai/kimi-k2-instruct-0905"),

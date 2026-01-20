@@ -22,7 +22,7 @@ export const QuestionSchema = z.object({
   marks: z.number().nullable(),
   section: z.string().nullable(),
   sectionInstructions: z.string().nullable(),
-  instructions: z.string().nullable(),
+  context: z.string().nullable(),
   expectedAnswer: z.string().nullable(),
   orderIndex: z.number(),
   options: z.array(AnswerOptionSchema),

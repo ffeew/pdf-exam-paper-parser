@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LatexText } from "@/components/ui/latex-text";
+import { MarkdownText } from "@/components/ui/markdown-text";
 import { McqQuestion } from "./mcq-question";
 import { FillBlankQuestion } from "./fill-blank-question";
 import { ShortAnswerQuestion } from "./short-answer-question";
@@ -27,12 +28,6 @@ export function QuestionCard({ question }: QuestionCardProps) {
             </span>
           )}
         </div>
-        {question.instructions && (
-          <LatexText
-            text={question.instructions}
-            className="text-sm text-muted-foreground italic mt-1 block"
-          />
-        )}
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -42,6 +37,16 @@ export function QuestionCard({ question }: QuestionCardProps) {
             {question.images.map((img) => (
               <QuestionImage key={img.id} image={img} />
             ))}
+          </div>
+        )}
+
+        {/* Question context - contextual content needed to answer the question */}
+        {question.context && (
+          <div className="bg-muted/30 border-l-4 border-primary/50 p-3 rounded-r-md">
+            <MarkdownText
+              text={question.context}
+              className="text-sm leading-relaxed"
+            />
           </div>
         )}
 

@@ -7,7 +7,6 @@ export interface StructuralQuestion {
   pageNumber: number;
   marks: number | null;
   section: string | null;
-  instructions: string | null;
   options: { label: string; text: string }[] | null;
   // Images that appear within this question's boundaries (by position)
   nearbyImageIds: string[];
@@ -342,7 +341,6 @@ function buildStructuralQuestions(
       pageNumber: boundary.pageNumber,
       marks,
       section: currentSection,
-      instructions: null, // Could be extracted with more patterns
       options,
       nearbyImageIds,
       startLine: boundary.startLine,

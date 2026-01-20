@@ -48,7 +48,7 @@ export const questions = sqliteTable("questions", {
   marks: integer("marks"),
   section: text("section"),
   sectionInstructions: text("section_instructions"),
-  instructions: text("instructions"),
+  context: text("context"), // Question-specific contextual content needed to answer this question
   expectedAnswer: text("expected_answer"),
   orderIndex: integer("order_index").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
