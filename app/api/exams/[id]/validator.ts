@@ -50,6 +50,7 @@ export const ExamWithQuestionsSchema = z.object({
   sections: z.array(SectionSchema),
   questions: z.array(QuestionSchema),
   examImages: z.array(QuestionImageSchema),
+  documentMarkdown: z.string().nullable(),
 });
 
 export type ExamWithQuestions = z.infer<typeof ExamWithQuestionsSchema>;

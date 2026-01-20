@@ -30,6 +30,7 @@ export const exams = sqliteTable("exams", {
   answerKeyConfidence: text("answer_key_confidence", {
     enum: ["high", "medium", "low"],
   }),
+  answerKeyPageNumbers: text("answer_key_page_numbers"), // JSON array of page numbers
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });

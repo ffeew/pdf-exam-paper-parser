@@ -24,3 +24,20 @@ export function replaceMarkdownImageUrls(
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
+
+/**
+ * Injects HTML anchor spans before question numbers for scroll targeting.
+ * Handles patterns like "1.", "2)", "Question 1", "Q1", etc.
+ */
+export function injectQuestionAnchors(markdown: string): string {
+  // Pattern matches common question number formats at line start
+  // - "1." or "1)" - numbered questions
+  // - "Question 1" or "Q1" - labeled questions
+  // - "(a)" or "a)" - sub-questions (less common at start)
+  return markdown.replace(
+    /^(\s*)((?:Question\s+|Q)?(\d+)[.)]\s)/gim,
+    (match, whitespace, full, num) => {
+      return `${whitespace}<span id="q-${num}" data-question="${num}"></span>${full}`;
+    }
+  );
+}

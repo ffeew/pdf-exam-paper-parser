@@ -121,6 +121,39 @@ export async function getExamWithQuestions(examId: string, userId: string) {
     })),
   }));
 
+  // Parse raw OCR result to build document markdown
+  let documentMarkdown: string | null = null;
+  if (exam.rawOcrResult) {
+    try {
+      const rawOcr = JSON.parse(exam.rawOcrResult);
+      if (rawOcr?.pages && Array.isArray(rawOcr.pages)) {
+        // Parse answer key page numbers to filter them out
+        const answerKeyPages: number[] = exam.answerKeyPageNumbers
+          ? JSON.parse(exam.answerKeyPageNumbers)
+          : [];
+
+        // Filter out answer key pages
+        const questionPages = rawOcr.pages.filter(
+          (page: { pageNumber?: number }, idx: number) => {
+            const pageNum = page.pageNumber ?? idx + 1;
+            return !answerKeyPages.includes(pageNum);
+          }
+        );
+
+        const fullMarkdown = questionPages
+          .map(
+            (page: { markdown?: string; pageNumber?: number }, idx: number) =>
+              `---\n\n**Page ${page.pageNumber ?? idx + 1}**\n\n---\n\n${page.markdown || ""}`
+          )
+          .join("\n\n");
+
+        documentMarkdown = replaceMarkdownImageUrls(fullMarkdown, imageIdToUrl);
+      }
+    } catch {
+      // If parsing fails, leave documentMarkdown as null
+    }
+  }
+
   return {
     id: exam.id,
     filename: exam.filename,
@@ -147,5 +180,6 @@ export async function getExamWithQuestions(examId: string, userId: string) {
       imageUrl: img.imageUrl,
       altText: img.altText,
     })),
+    documentMarkdown,
   };
 }

@@ -1,12 +1,14 @@
 "use client";
 
-import { use, useEffect } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { useExam } from "@/hooks/use-exam";
 import { ExamHeader } from "@/components/exam/exam-header";
 import { SectionGroup } from "@/components/exam/section-group";
 import { QuestionImage } from "@/components/exam/question-image";
+import { ExamViewToggle, type ViewMode } from "@/components/exam/exam-view-toggle";
+import { DocumentView } from "@/components/exam/document-view";
 import type { Question, Section } from "@/app/api/exams/[id]/validator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,6 +117,7 @@ export default function ExamPage({
   const router = useRouter();
   const { data: session, isPending: isSessionLoading } = useSession();
   const { data: exam, isLoading, error } = useExam(id);
+  const [viewMode, setViewMode] = useState<ViewMode>("structured");
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -162,45 +165,63 @@ export default function ExamPage({
     return <ErrorState message={exam.errorMessage || "Unknown error"} />;
   }
 
+  const hasDocumentMarkdown = Boolean(exam.documentMarkdown);
+
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto">
       <ExamHeader exam={exam} />
 
-      {/* Exam-level images (not linked to specific questions) */}
-      {exam.examImages && exam.examImages.length > 0 && (
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="text-lg">Exam Reference Materials</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4 flex-wrap">
-              {exam.examImages.map((img) => (
-                <QuestionImage key={img.id} image={img} />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {hasDocumentMarkdown && (
+        <div className="flex items-center gap-3 mt-6 mb-4">
+          <span className="text-sm text-muted-foreground">View:</span>
+          <ExamViewToggle view={viewMode} onViewChange={setViewMode} />
+        </div>
       )}
 
-      <div className="space-y-8 mt-8">
-        {groupQuestionsBySection(exam.sections, exam.questions).map((group, index) => (
-          <SectionGroup
-            key={`section-${index}`}
-            sectionName={group.sectionName}
-            sectionInstructions={group.sectionInstructions}
-            questions={group.questions}
-          />
-        ))}
-      </div>
+      {viewMode === "document" && hasDocumentMarkdown ? (
+        <DocumentView
+          markdown={exam.documentMarkdown!}
+          questions={exam.questions}
+        />
+      ) : (
+        <div className={`max-w-4xl ${!hasDocumentMarkdown ? "mt-6" : ""}`}>
+          {/* Exam-level images (not linked to specific questions) */}
+          {exam.examImages && exam.examImages.length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="text-lg">Exam Reference Materials</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4 flex-wrap">
+                  {exam.examImages.map((img) => (
+                    <QuestionImage key={img.id} image={img} />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-      {exam.questions.length === 0 && (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">
-              No questions found in this exam.
-            </p>
-          </CardContent>
-        </Card>
+          <div className="space-y-8">
+            {groupQuestionsBySection(exam.sections, exam.questions).map((group, index) => (
+              <SectionGroup
+                key={`section-${index}`}
+                sectionName={group.sectionName}
+                sectionInstructions={group.sectionInstructions}
+                questions={group.questions}
+              />
+            ))}
+          </div>
+
+          {exam.questions.length === 0 && (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <p className="text-muted-foreground">
+                  No questions found in this exam.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );

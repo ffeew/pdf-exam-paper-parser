@@ -116,6 +116,10 @@ export async function saveExtractedData(
       totalMarks: extracted.totalMarks,
       hasAnswerKey: answerKey?.found ?? false,
       answerKeyConfidence: answerKey?.found ? answerKey.confidence : null,
+      answerKeyPageNumbers:
+        answerKey?.sourcePageNumbers && answerKey.sourcePageNumbers.length > 0
+          ? JSON.stringify(answerKey.sourcePageNumbers)
+          : null,
       updatedAt: new Date(),
     })
     .where(eq(exams.id, examId));
