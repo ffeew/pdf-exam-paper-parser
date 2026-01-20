@@ -22,7 +22,7 @@ export function SideNavbar() {
   };
 
   return (
-    <aside className="w-64 h-screen flex flex-col border-r bg-background">
+    <aside className="w-64 h-screen flex flex-col border-r bg-background sticky top-0">
       {/* Logo / Brand */}
       <div className="p-4 border-b">
         <Link href="/" className="font-semibold text-lg">
