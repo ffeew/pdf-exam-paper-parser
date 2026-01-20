@@ -8,8 +8,17 @@ interface ChatMessageProps {
 	message: ChatMessageType;
 }
 
+// Extract text content from message parts
+function getMessageText(message: ChatMessageType): string {
+	return message.parts
+		.filter((part) => part.type === "text")
+		.map((part) => (part.type === "text" ? part.text : ""))
+		.join("");
+}
+
 export function ChatMessage({ message }: ChatMessageProps) {
 	const isUser = message.role === "user";
+	const text = getMessageText(message);
 
 	return (
 		<div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
@@ -20,9 +29,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
 				)}
 			>
 				{isUser ? (
-					<p className="whitespace-pre-wrap">{message.content}</p>
+					<p className="whitespace-pre-wrap">{text}</p>
 				) : (
-					<MarkdownText text={message.content} />
+					<MarkdownText text={text} />
 				)}
 			</div>
 		</div>

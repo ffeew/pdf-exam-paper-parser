@@ -1,10 +1,10 @@
-import { streamText } from "ai";
+import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { createGroq } from "@ai-sdk/groq";
 import { env } from "@/lib/config/env";
 import { db } from "@/lib/db";
 import { chatMessages, questions } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import type { AIModel, QuestionContext, ChatMessage } from "./validator";
+import type { AIModel, QuestionContext } from "./validator";
 
 const groq = createGroq({
 	apiKey: env.GROQ_API_KEY,
@@ -51,8 +51,7 @@ function buildContextPrompt(context: QuestionContext): string {
 export async function streamAIResponse(
 	examId: string,
 	questionNumber: string,
-	userMessage: string,
-	conversationHistory: ChatMessage[],
+	messages: UIMessage[],
 	model: AIModel,
 	questionContext: QuestionContext,
 	userId: string
@@ -69,24 +68,21 @@ export async function streamAIResponse(
 	const questionId = question?.id ?? null;
 	const modelId = MODEL_MAP[model];
 
-	// Build messages array for the AI
-	const messages = [
-		...conversationHistory.map((msg) => ({
-			role: msg.role as "user" | "assistant",
-			content: msg.content,
-		})),
-		{ role: "user" as const, content: userMessage },
-	];
+	// Extract the last user message for persistence
+	const lastUserMessage = messages.findLast((m) => m.role === "user");
+	const userMessageContent = extractTextFromMessage(lastUserMessage);
+
+	// Convert UI messages to model messages format
+	const modelMessages = await convertToModelMessages(messages);
 
 	// Save user message to database
-	const userMsgId = crypto.randomUUID();
 	await db.insert(chatMessages).values({
-		id: userMsgId,
+		id: crypto.randomUUID(),
 		examId,
 		questionId,
 		userId,
 		role: "user",
-		content: userMessage,
+		content: userMessageContent,
 		aiModel: null,
 		createdAt: new Date(),
 	});
@@ -95,7 +91,7 @@ export async function streamAIResponse(
 	const result = streamText({
 		model: groq(modelId),
 		system: TUTOR_SYSTEM_PROMPT + buildContextPrompt(questionContext),
-		messages,
+		messages: modelMessages,
 		temperature: 0.7,
 		onFinish: async ({ text, usage }) => {
 			// Save assistant message after streaming completes
@@ -112,6 +108,14 @@ export async function streamAIResponse(
 	});
 
 	return result;
+}
+
+// Helper to extract text content from a UI message
+function extractTextFromMessage(message: UIMessage | undefined): string {
+	if (!message) return "";
+	// UIMessage parts contain the actual content
+	const textPart = message.parts.find((part) => part.type === "text");
+	return textPart?.type === "text" ? textPart.text : "";
 }
 
 export async function saveChatMessage(

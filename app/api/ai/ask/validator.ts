@@ -1,15 +1,9 @@
 import { z } from "zod";
+import type { UIMessage } from "ai";
 
 // Supported AI models
 export const AIModelSchema = z.enum(["gpt-oss-120b", "kimi-k2"]);
 export type AIModel = z.infer<typeof AIModelSchema>;
-
-// Chat message for conversation history
-export const ChatMessageSchema = z.object({
-	role: z.enum(["user", "assistant"]),
-	content: z.string(),
-});
-export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
 // MCQ option context
 export const OptionContextSchema = z.object({
@@ -28,12 +22,11 @@ export const QuestionContextSchema = z.object({
 });
 export type QuestionContext = z.infer<typeof QuestionContextSchema>;
 
-// Request schema
+// Request schema - uses AI SDK UIMessage format (passthrough for messages)
 export const AskRequestSchema = z.object({
 	examId: z.string().min(1),
 	questionNumber: z.string().min(1),
-	userMessage: z.string().min(1).max(2000),
-	conversationHistory: z.array(ChatMessageSchema).max(20).default([]),
+	messages: z.array(z.any()).min(1).max(21) as z.ZodType<UIMessage[]>,
 	model: AIModelSchema.default("kimi-k2"),
 	questionContext: QuestionContextSchema,
 });

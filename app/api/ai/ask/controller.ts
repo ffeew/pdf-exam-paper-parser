@@ -29,28 +29,21 @@ export async function handleAskStream(request: NextRequest) {
 			);
 		}
 
-		const {
-			examId,
-			questionNumber,
-			userMessage,
-			conversationHistory,
-			model,
-			questionContext,
-		} = parseResult.data;
+		const { examId, questionNumber, messages, model, questionContext } =
+			parseResult.data;
 
 		// Get streaming response (onFinish callback handles persistence)
 		const result = await streamAIResponse(
 			examId,
 			questionNumber,
-			userMessage,
-			conversationHistory,
+			messages,
 			model,
 			questionContext,
 			session.user.id
 		);
 
-		// Return streaming response
-		return result.toTextStreamResponse();
+		// Return streaming response in UI message format
+		return result.toUIMessageStreamResponse();
 	} catch (error) {
 		console.error("Error in AI ask endpoint:", error);
 		return new Response(JSON.stringify({ error: "Internal server error" }), {

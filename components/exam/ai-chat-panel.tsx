@@ -121,7 +121,7 @@ export function AIChatPanel({ examId, question, questions, onQuestionChange, onC
 					</div>
 				) : (
 					<div className="space-y-3">
-						{messages.map((msg: { id: string; role: "user" | "assistant"; content: string }) => (
+						{messages.map((msg) => (
 							<ChatMessage key={msg.id} message={msg} />
 						))}
 						{isLoading && messages[messages.length - 1]?.role === "user" && (
