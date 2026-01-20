@@ -58,6 +58,7 @@ Two-tier approach to remove administrative images (logos, watermarks, score boxe
 
 - **Auto-save**: Text answers debounce for 1 second before saving; MCQ selections save immediately
 - **Grading**: LLM evaluates user answers against expected answers or correct MCQ options
+- **Answer Key Validation**: Grading LLM validates answer keys against question context to detect OCR errors; grades based on actual correct answer when discrepancies are found
 - **Partial Credit**: Supports partial scoring for text answers based on semantic similarity
 - **Feedback**: Each graded answer includes an explanation of why it was marked correct/incorrect
 - **Batch Grading**: "Grade All" option to evaluate all submitted answers at once

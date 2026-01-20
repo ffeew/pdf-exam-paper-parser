@@ -18,10 +18,18 @@ const MODEL_MAP: Record<AIModel, string> = {
   "kimi-k2": "moonshotai/kimi-k2-instruct-0905",
 };
 
-const GRADING_SYSTEM_PROMPT = `You are an expert exam grader. Your task is to evaluate a student's answer against the expected answer and provide fair, constructive feedback.
+const GRADING_SYSTEM_PROMPT = `You are an expert exam grader. Your task is to evaluate a student's answer and provide fair, constructive feedback.
+
+IMPORTANT - ANSWER KEY VALIDATION:
+The answer key provided may contain OCR errors. Before grading:
+1. First, analyze the question carefully to determine what the correct answer SHOULD be
+2. Verify that the provided "Correct Answer" makes sense for the question
+3. If the provided answer key appears INCORRECT (e.g., doesn't match the question logic, contains obvious errors, or is mathematically/factually wrong), grade based on what you determine to be the actual correct answer and note the suspected OCR error in your feedback
 
 GRADING RULES:
-1. For MCQ questions: Check if the selected option matches the correct option exactly
+1. For MCQ questions:
+   - Verify the marked correct option actually answers the question correctly
+   - If the answer key is wrong, grade against the actual correct answer
 2. For text questions: Compare semantic meaning, not exact wording
 3. Award partial credit for partially correct answers when appropriate
 4. For math questions: Accept equivalent forms (e.g., 1/2 = 0.5 = 50%)
@@ -33,7 +41,7 @@ You must respond with ONLY a valid JSON object in exactly this format, no other 
 {
   "isCorrect": true or false,
   "score": number between 0 and the maximum score,
-  "feedback": "1-3 sentences explaining the grade"
+  "feedback": "1-3 sentences explaining the grade. If you detected an answer key error, mention it here."
 }`;
 
 interface QuestionWithOptions {
