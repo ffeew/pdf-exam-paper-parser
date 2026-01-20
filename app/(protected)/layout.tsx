@@ -6,9 +6,9 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <SideNavbar />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 h-full overflow-auto">{children}</main>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { DocumentView } from "@/components/exam/document-view";
 import type { Question, Section } from "@/app/api/exams/[id]/validator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 function ExamSkeleton() {
   return (
@@ -168,7 +169,11 @@ export default function ExamPage({
   const hasDocumentMarkdown = Boolean(exam.documentMarkdown);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className={cn(
+      "p-8 max-w-7xl mx-auto",
+      viewMode === "document" && hasDocumentMarkdown &&
+        "fixed inset-0 left-64 flex flex-col overflow-hidden bg-background"
+    )}>
       <ExamHeader exam={exam} />
 
       {hasDocumentMarkdown && (
@@ -179,12 +184,14 @@ export default function ExamPage({
       )}
 
       {viewMode === "document" && hasDocumentMarkdown ? (
-        <DocumentView
-          markdown={exam.documentMarkdown!}
-          questions={exam.questions}
-        />
+        <div className="flex-1 min-h-0">
+          <DocumentView
+            markdown={exam.documentMarkdown!}
+            questions={exam.questions}
+          />
+        </div>
       ) : (
-        <div className={`max-w-4xl ${!hasDocumentMarkdown ? "mt-6" : ""}`}>
+        <div className={!hasDocumentMarkdown ? "mt-6" : ""}>
           {/* Exam-level images (not linked to specific questions) */}
           {exam.examImages && exam.examImages.length > 0 && (
             <Card className="mb-8">

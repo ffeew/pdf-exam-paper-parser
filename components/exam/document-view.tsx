@@ -206,7 +206,7 @@ export function DocumentView({ markdown, questions }: DocumentViewProps) {
   );
 
   return (
-    <div className="flex h-[calc(100vh-12rem)] gap-4">
+    <div className="flex h-full gap-4">
       {/* Document Panel */}
       <div
         ref={documentRef}
