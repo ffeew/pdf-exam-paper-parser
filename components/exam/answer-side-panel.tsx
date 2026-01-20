@@ -8,7 +8,8 @@ import { CompactAnswerInput } from "./compact-answer-input";
 import { ExamSummary } from "./exam-summary";
 import { AIChatPanel } from "./ai-chat-panel";
 import { cn } from "@/lib/utils";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Eye, EyeOff } from "lucide-react";
+import { AnswerReveal } from "./answer-reveal";
 import { useExamAnswers, useSubmitAnswer } from "@/hooks/use-answers";
 import type { Question, Section } from "@/app/api/exams/[id]/validator";
 
@@ -31,6 +32,7 @@ export function AnswerSidePanel({
 	const [selectedQuestionForChat, setSelectedQuestionForChat] = useState<string | null>(
 		() => questions[0]?.questionNumber ?? null
 	);
+	const [showAnswers, setShowAnswers] = useState<Record<string, boolean>>({});
 	const containerRef = useRef<HTMLDivElement>(null);
 	const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -78,6 +80,19 @@ export function AnswerSidePanel({
 		setSelectedQuestionForChat(questionNumber);
 		setActiveTab("chat");
 	};
+
+	// Toggle answer visibility for a question
+	const toggleAnswer = (questionNumber: string) => {
+		setShowAnswers((prev) => ({
+			...prev,
+			[questionNumber]: !prev[questionNumber],
+		}));
+	};
+
+	// Check if question has an answer to reveal
+	const hasAnswer = (q: Question) =>
+		q.expectedAnswer ||
+		(q.questionType === "mcq" && q.options.some((opt) => opt.isCorrect));
 
 	return (
 		<Tabs
@@ -146,6 +161,29 @@ export function AnswerSidePanel({
 														{question.marks === 1 ? "mark" : "marks"}
 													</span>
 												)}
+												{hasAnswer(question) && (
+													<Button
+														variant="ghost"
+														size="sm"
+														className="h-6 px-2 text-xs"
+														onClick={(e) => {
+															e.stopPropagation();
+															toggleAnswer(question.questionNumber);
+														}}
+													>
+														{showAnswers[question.questionNumber] ? (
+															<>
+																<EyeOff className="h-3 w-3 mr-1" />
+																Hide
+															</>
+														) : (
+															<>
+																<Eye className="h-3 w-3 mr-1" />
+																Answer
+															</>
+														)}
+													</Button>
+												)}
 												<Button
 													variant="ghost"
 													size="sm"
@@ -174,6 +212,11 @@ export function AnswerSidePanel({
 											}
 										/>
 									</CardContent>
+									{showAnswers[question.questionNumber] && (
+										<div className="px-3 pb-2">
+											<AnswerReveal question={question} />
+										</div>
+									)}
 								</Card>
 							);
 						})}
