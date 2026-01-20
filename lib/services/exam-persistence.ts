@@ -90,6 +90,7 @@ export async function saveExtractedData(
       questionType: q.questionType,
       marks: q.marks,
       section: q.section,
+      sectionInstructions: q.sectionInstructions || null,
       instructions: q.instructions,
       expectedAnswer: q.expectedAnswer,
       orderIndex: i,

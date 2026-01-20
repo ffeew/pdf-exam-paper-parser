@@ -35,11 +35,14 @@ const QuestionSchema = z.object({
   section: z
     .string()
     .nullable()
-    .describe("The section this question belongs to, null if none"),
+    .describe("The section title/name this question belongs to (e.g., '一、辨字测验', 'Section A', 'Part 1'), null if none"),
+  sectionInstructions: z
+    .string()
+    .describe("Section instructions on FIRST question only, empty string for others"),
   instructions: z
     .string()
     .nullable()
-    .describe("Any special instructions for this question, null if none"),
+    .describe("Question-specific instructions that only apply to THIS question, null if none"),
   options: z
     .array(AnswerOptionSchema)
     .nullable()
@@ -89,7 +92,11 @@ The document is organized by pages, marked with "--- Page N ---" headers.
 
 For each question:
 1. Identify the question number (e.g., "1", "2a", "2b", "3(i)")
-2. Extract the full question text
+2. Extract the question text:
+   - **IMPORTANT for MCQs**: Remove inline options from the question text and replace with a blank
+   - Chinese MCQ example: "不 (1馆 2管 3官 4观) 怎么说" → questionText: "不______怎么说"
+   - The options are extracted separately, so do NOT include them in questionText
+   - For English MCQs, do NOT include options A, B, C, D in the question text
 3. Determine the question type:
    - "mcq": Multiple choice with options A, B, C, D (or similar)
    - "fill_blank": Fill in the blank questions (has underlined spaces or boxes)
@@ -97,9 +104,16 @@ For each question:
    - "long_answer": Questions requiring explanation, working, or longer responses
 4. **CRITICAL: Identify the page number where the question appears** (look at the "--- Page N ---" header above the question)
 5. Extract marks if shown (usually in parentheses like "(2 marks)" or "[2]")
-6. Identify the section if the exam is divided into sections (Section A, B, etc.)
+6. Identify sections and their instructions:
+   - Section title: The header like "一、辨字测验 (2 题 4 分)", "Section A", or "Part 1"
+   - Section instructions: Text that tells students HOW to answer questions in that section
+     Example: "从各题所提供的四个选项中，选出正确的答案。" (Choose the correct answer from the four options)
+   - **IMPORTANT**: Only include sectionInstructions on the FIRST question of each section
+   - Later questions in the same section should have sectionInstructions as empty string ""
+   - Chinese format: Look for "一、二、三、四" numbering followed by instruction text
+   - English format: Look for "Section A/B/C" or "Part 1/2/3" followed by instruction text
 7. For MCQ, extract all options with their labels (A, B, C, D)
-8. Extract any special instructions for the question
+8. Extract any question-specific instructions (instructions that only apply to one question, not the whole section)
 9. **CRITICAL - Link images to questions**: The markdown contains image references like ![img-0.jpeg](img-0.jpeg).
    - Look for these image references in the markdown text
    - If an image appears within or immediately after a question's text, add its ID to the relatedImageIds array

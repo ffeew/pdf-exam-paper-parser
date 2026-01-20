@@ -21,6 +21,7 @@ export const QuestionSchema = z.object({
   questionType: z.enum(["mcq", "fill_blank", "short_answer", "long_answer"]),
   marks: z.number().nullable(),
   section: z.string().nullable(),
+  sectionInstructions: z.string().nullable(),
   instructions: z.string().nullable(),
   expectedAnswer: z.string().nullable(),
   orderIndex: z.number(),

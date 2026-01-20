@@ -46,6 +46,7 @@ export const questions = sqliteTable("questions", {
   }).notNull(),
   marks: integer("marks"),
   section: text("section"),
+  sectionInstructions: text("section_instructions"),
   instructions: text("instructions"),
   expectedAnswer: text("expected_answer"),
   orderIndex: integer("order_index").notNull(),

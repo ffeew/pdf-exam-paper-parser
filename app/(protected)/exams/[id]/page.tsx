@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { useExam } from "@/hooks/use-exam";
 import { ExamHeader } from "@/components/exam/exam-header";
-import { QuestionCard } from "@/components/exam/question-card";
+import { SectionGroup } from "@/components/exam/section-group";
 import { QuestionImage } from "@/components/exam/question-image";
+import type { Question } from "@/app/api/exams/[id]/validator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -51,6 +52,50 @@ function ErrorState({ message }: { message: string }) {
       </Card>
     </div>
   );
+}
+
+interface SectionGroupData {
+  sectionName: string | null;
+  sectionInstructions: string | null;
+  questions: Question[];
+}
+
+function groupQuestionsBySection(questions: Question[]): SectionGroupData[] {
+  const groups: SectionGroupData[] = [];
+
+  let currentSection: string | null = null;
+  let currentGroup: Question[] = [];
+  let currentInstructions: string | null = null;
+
+  for (const question of questions) {
+    if (question.section !== currentSection) {
+      // Save previous group
+      if (currentGroup.length > 0) {
+        groups.push({
+          sectionName: currentSection,
+          sectionInstructions: currentInstructions,
+          questions: currentGroup,
+        });
+      }
+      // Start new group
+      currentSection = question.section;
+      currentInstructions = question.sectionInstructions;
+      currentGroup = [question];
+    } else {
+      currentGroup.push(question);
+    }
+  }
+
+  // Save last group
+  if (currentGroup.length > 0) {
+    groups.push({
+      sectionName: currentSection,
+      sectionInstructions: currentInstructions,
+      questions: currentGroup,
+    });
+  }
+
+  return groups;
 }
 
 export default function ExamPage({
@@ -129,9 +174,14 @@ export default function ExamPage({
         </Card>
       )}
 
-      <div className="space-y-6 mt-8">
-        {exam.questions.map((question) => (
-          <QuestionCard key={question.id} question={question} />
+      <div className="space-y-8 mt-8">
+        {groupQuestionsBySection(exam.questions).map((group, index) => (
+          <SectionGroup
+            key={`section-${index}`}
+            sectionName={group.sectionName}
+            sectionInstructions={group.sectionInstructions}
+            questions={group.questions}
+          />
         ))}
       </div>
 

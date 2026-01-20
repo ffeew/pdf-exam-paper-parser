@@ -27,11 +27,6 @@ export function QuestionCard({ question }: QuestionCardProps) {
             </span>
           )}
         </div>
-        {question.section && (
-          <p className="text-sm text-muted-foreground">
-            Section: {question.section}
-          </p>
-        )}
         {question.instructions && (
           <LatexText
             text={question.instructions}

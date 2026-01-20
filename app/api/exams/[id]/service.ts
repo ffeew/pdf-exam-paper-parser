@@ -92,6 +92,7 @@ export async function getExamWithQuestions(examId: string, userId: string) {
     questionType: q.questionType,
     marks: q.marks,
     section: q.section,
+    sectionInstructions: q.sectionInstructions,
     instructions: q.instructions,
     expectedAnswer: q.expectedAnswer,
     orderIndex: q.orderIndex,
