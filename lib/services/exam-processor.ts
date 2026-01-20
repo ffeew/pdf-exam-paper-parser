@@ -11,7 +11,7 @@ export async function processExamAsync(examId: string, fileKey: string) {
     // Update status to processing
     await db
       .update(exams)
-      .set({ status: "processing", updatedAt: new Date() })
+      .set({ status: "processing", progress: 10, updatedAt: new Date() })
       .where(eq(exams.id, examId));
 
     // Step 1: OCR - Extract text and images from PDF
@@ -24,7 +24,7 @@ export async function processExamAsync(examId: string, fileKey: string) {
     // Save raw OCR result for debugging/reference
     await db
       .update(exams)
-      .set({ rawOcrResult: ocrResult.rawJson, updatedAt: new Date() })
+      .set({ rawOcrResult: ocrResult.rawJson, progress: 40, updatedAt: new Date() })
       .where(eq(exams.id, examId));
 
     // Step 2: LLM extraction - Parse OCR output into structured questions
@@ -33,6 +33,12 @@ export async function processExamAsync(examId: string, fileKey: string) {
     console.log(
       `[${examId}] LLM extraction completed. Found ${extractedExam.questions.length} questions.`
     );
+
+    // Update progress after LLM extraction
+    await db
+      .update(exams)
+      .set({ progress: 70, updatedAt: new Date() })
+      .where(eq(exams.id, examId));
 
     // Step 3: Answer key extraction - Check for and extract answer key
     console.log(`[${examId}] Checking for answer key...`);
@@ -45,6 +51,12 @@ export async function processExamAsync(examId: string, fileKey: string) {
       console.log(`[${examId}] No answer key detected.`);
     }
 
+    // Update progress after answer key extraction
+    await db
+      .update(exams)
+      .set({ progress: 90, updatedAt: new Date() })
+      .where(eq(exams.id, examId));
+
     // Step 4: Save to database
     console.log(`[${examId}] Saving extracted data to database...`);
     await saveExtractedData(examId, extractedExam, ocrResult, answerKeyResult);
@@ -52,7 +64,7 @@ export async function processExamAsync(examId: string, fileKey: string) {
     // Mark as completed
     await db
       .update(exams)
-      .set({ status: "completed", updatedAt: new Date() })
+      .set({ status: "completed", progress: 100, updatedAt: new Date() })
       .where(eq(exams.id, examId));
 
     console.log(`[${examId}] Processing completed successfully.`);

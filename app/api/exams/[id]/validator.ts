@@ -52,6 +52,7 @@ export type Question = z.infer<typeof QuestionSchema>;
 export const ExamStatusSchema = z.object({
   id: z.string(),
   status: z.enum(["pending", "processing", "completed", "failed"]),
+  progress: z.number(),
   errorMessage: z.string().nullable(),
 });
 

@@ -201,9 +201,9 @@ export default function UploadPage() {
 					{/* Processing Status */}
 					{isProcessing && examStatus && (
 						<div className="space-y-2">
-							<Progress value={undefined} className="animate-pulse" />
+							<Progress value={examStatus.progress} />
 							<p className="text-sm text-center text-muted-foreground">
-								{getStatusMessage(examStatus.status)}
+								{getStatusMessage(examStatus.status)} {examStatus.progress}%
 							</p>
 							{examStatus.status === "failed" && examStatus.errorMessage && (
 								<p className="text-sm text-center text-destructive">

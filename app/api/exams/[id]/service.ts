@@ -9,6 +9,7 @@ export async function getExamStatus(examId: string, userId: string) {
     columns: {
       id: true,
       status: true,
+      progress: true,
       errorMessage: true,
     },
   });

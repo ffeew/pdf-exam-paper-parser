@@ -23,6 +23,7 @@ export const exams = sqliteTable("exams", {
   })
     .notNull()
     .default("pending"),
+  progress: integer("progress").notNull().default(0), // 0-100
   errorMessage: text("error_message"),
   rawOcrResult: text("raw_ocr_result"),
   hasAnswerKey: integer("has_answer_key", { mode: "boolean" }).default(false),

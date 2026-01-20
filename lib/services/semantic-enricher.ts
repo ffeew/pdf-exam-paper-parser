@@ -89,23 +89,17 @@ Question ${i + 1}:
     })
     .join("\n");
 
-  const prompt = `You are analyzing a Singapore Primary school exam paper. The structural data has already been extracted programmatically. Your task is to provide ONLY the semantic understanding that requires interpretation.
-
-EXAM CONTEXT (first page header):
-${structural.fullDocument.slice(0, 1500)}
-
-QUESTIONS TO CLASSIFY:
-${questionsContext}
+  const systemPrompt = `You are analyzing Singapore Primary school exam papers. The structural data has already been extracted programmatically. Your task is to provide ONLY the semantic understanding that requires interpretation.
 
 For each question, determine:
 
-1. **questionType**: Based on the question text and options:
+1. questionType: Based on the question text and options:
    - "mcq": Has multiple choice options (A, B, C, D)
    - "fill_blank": Has blank spaces to fill (underlines, boxes, "_____")
    - "short_answer": Requires a single word, number, or short phrase
    - "long_answer": Requires explanation, working, or multiple sentences
 
-2. **relatedImageIds**: From the nearby images, select ONLY those that are:
+2. relatedImageIds: From the nearby images, select ONLY those that are:
    - Diagrams, figures, charts, graphs, shapes needed to answer the question
 
    EXCLUDE (do NOT include):
@@ -118,19 +112,26 @@ For each question, determine:
 
    If unsure whether an image is needed, EXCLUDE it.
 
-3. **expectedAnswer**: Only if the answer is explicitly shown in the text
+3. expectedAnswer: Only if the answer is explicitly shown in the text
 
 Also confirm/provide:
 - subject: The exam subject (Math, English, Chinese, Science, etc.)
 - grade: The grade level (e.g., "Primary 4")
-- schoolName: The school name if visible
-
-Return a JSON object with these fields.`;
+- schoolName: The school name if visible`;
 
   const { output } = await generateText({
-    model: groq("openai/gpt-oss-120b"),
+    model: groq("moonshotai/kimi-k2-instruct-0905"),
+    temperature: 0.1,
+    maxRetries: 3,
+    system: systemPrompt,
     output: Output.object({ schema: EnrichmentResultSchema }),
-    prompt,
+    prompt: `Analyze this exam paper and classify the questions:
+
+EXAM CONTEXT (first page header):
+${structural.fullDocument.slice(0, 1500)}
+
+QUESTIONS TO CLASSIFY:
+${questionsContext}`,
   });
 
   if (!output) {

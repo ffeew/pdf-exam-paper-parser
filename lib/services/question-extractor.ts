@@ -81,19 +81,14 @@ export async function extractQuestionsWithLlm(
     })
     .join("\n\n");
 
-  const { output } = await generateText({
-    model: groq("openai/gpt-oss-120b"),
-    output: Output.object({ schema: ExamExtractionSchema }),
-    prompt: `You are an expert at extracting structured information from exam papers.
-
-Analyze the following OCR output from a Singapore Primary school exam paper and extract all questions.
+  const systemPrompt = `You are an expert at extracting structured information from exam papers. You will receive OCR output from Singapore Primary school exam papers and must extract all questions into a structured JSON format.
 
 The document is organized by pages, marked with "--- Page N ---" headers.
 
 For each question:
 1. Identify the question number (e.g., "1", "2a", "2b", "3(i)")
 2. Extract the question text:
-   - **IMPORTANT for MCQs**: Remove inline options from the question text and replace with a blank
+   - IMPORTANT for MCQs: Remove inline options from the question text and replace with a blank
    - Chinese MCQ example: "不 (1馆 2管 3官 4观) 怎么说" → questionText: "不______怎么说"
    - The options are extracted separately, so do NOT include them in questionText
    - For English MCQs, do NOT include options A, B, C, D in the question text
@@ -102,19 +97,19 @@ For each question:
    - "fill_blank": Fill in the blank questions (has underlined spaces or boxes)
    - "short_answer": Questions requiring a word, number, or short phrase
    - "long_answer": Questions requiring explanation, working, or longer responses
-4. **CRITICAL: Identify the page number where the question appears** (look at the "--- Page N ---" header above the question)
+4. CRITICAL: Identify the page number where the question appears (look at the "--- Page N ---" header above the question)
 5. Extract marks if shown (usually in parentheses like "(2 marks)" or "[2]")
 6. Identify sections and their instructions:
    - Section title: The header like "一、辨字测验 (2 题 4 分)", "Section A", or "Part 1"
    - Section instructions: Text that tells students HOW to answer questions in that section
      Example: "从各题所提供的四个选项中，选出正确的答案。" (Choose the correct answer from the four options)
-   - **IMPORTANT**: Only include sectionInstructions on the FIRST question of each section
+   - IMPORTANT: Only include sectionInstructions on the FIRST question of each section
    - Later questions in the same section should have sectionInstructions as empty string ""
    - Chinese format: Look for "一、二、三、四" numbering followed by instruction text
    - English format: Look for "Section A/B/C" or "Part 1/2/3" followed by instruction text
 7. For MCQ, extract all options with their labels (A, B, C, D)
 8. Extract any question-specific instructions (instructions that only apply to one question, not the whole section)
-9. **CRITICAL - Link images to questions**: The markdown contains image references like ![img-0.jpeg](img-0.jpeg).
+9. CRITICAL - Link images to questions: The markdown contains image references like ![img-0.jpeg](img-0.jpeg).
    - Look for these image references in the markdown text
    - If an image appears within or immediately after a question's text, add its ID to the relatedImageIds array
    - The image ID is the filename part (e.g., "img-0.jpeg", "img-1.jpeg")
@@ -131,11 +126,17 @@ Also extract metadata about the exam:
 Important notes:
 - Be thorough - extract ALL questions from the document
 - Preserve the exact question numbering used in the exam
-- **Always set the pageNumber field** - this is required for linking images to questions
+- Always set the pageNumber field - this is required for linking images to questions
 - For fill-in-the-blank questions, include the blanks in the question text using underscores (e.g., "The capital of France is _____")
-- If you can't determine something, use null
+- If you can't determine something, use null`;
 
-Here is the document:
+  const { output } = await generateText({
+    model: groq("moonshotai/kimi-k2-instruct-0905"),
+    temperature: 0.1,
+    maxRetries: 3,
+    system: systemPrompt,
+    output: Output.object({ schema: ExamExtractionSchema }),
+    prompt: `Extract all questions and metadata from this exam paper:
 
 ${fullDocument}`,
   });

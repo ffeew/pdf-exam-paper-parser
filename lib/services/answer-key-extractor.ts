@@ -70,10 +70,7 @@ async function detectAnswerKey(pages: OcrPage[]): Promise<AnswerKeyDetection> {
     .map((p) => `--- Page ${p.pageNumber} ---\n${p.markdown}`)
     .join("\n\n");
 
-  const { output } = await generateText({
-    model: groq("openai/gpt-oss-120b"),
-    output: Output.object({ schema: AnswerKeyDetectionSchema }),
-    prompt: `You are an expert at analyzing exam papers. Your task is to determine if the following pages contain an ANSWER KEY section.
+  const systemPrompt = `You are an expert at analyzing exam papers. Your task is to determine if pages contain an ANSWER KEY section.
 
 An answer key is a section that provides the correct answers to exam questions. It is different from the questions themselves.
 
@@ -90,13 +87,19 @@ Characteristics that are NOT an answer key:
 - Fill-in-the-blank questions with underlines
 - Questions asking students to select an answer
 
-Analyze these pages and determine:
+You must determine:
 1. Is there an answer key section? (hasAnswerKey)
 2. Which page number(s) contain the answer key? (answerKeyPageNumbers)
 3. How confident are you? (confidence: high/medium/low)
-4. Why did you reach this conclusion? (reason)
+4. Why did you reach this conclusion? (reason)`;
 
-Here are the pages to analyze:
+  const { output } = await generateText({
+    model: groq("moonshotai/kimi-k2-instruct-0905"),
+    temperature: 0.1,
+    maxRetries: 3,
+    system: systemPrompt,
+    output: Output.object({ schema: AnswerKeyDetectionSchema }),
+    prompt: `Analyze these pages to detect if there is an answer key section:
 
 ${pagesContent}`,
   });
@@ -123,14 +126,9 @@ async function extractAnswersFromPages(
     .map((p) => `--- Page ${p.pageNumber} ---\n${p.markdown}`)
     .join("\n\n");
 
-  const { output } = await generateText({
-    model: groq("openai/gpt-oss-120b"),
-    output: Output.object({ schema: AnswerKeyExtractionSchema }),
-    prompt: `You are an expert at extracting answer keys from exam papers.
+  const systemPrompt = `You are an expert at extracting answer keys from exam papers.
 
-The following pages contain an answer key section. Extract ALL question-answer pairs.
-
-For each answer:
+For each answer, extract:
 1. questionNumber: The question number exactly as shown (e.g., "1", "2a", "2(i)", "Section A Q1")
 2. answer: The correct answer
    - For MCQ: Just the letter (e.g., "A", "B", "C", "D")
@@ -143,9 +141,15 @@ Important:
 - Extract ALL answers, even if the format is inconsistent
 - Preserve the exact question numbering used (don't normalize)
 - Handle any format: tables, lists, inline, scattered
-- Handle any language (English, Chinese, bilingual)
+- Handle any language (English, Chinese, bilingual)`;
 
-Here are the answer key pages:
+  const { output } = await generateText({
+    model: groq("moonshotai/kimi-k2-instruct-0905"),
+    temperature: 0.1,
+    maxRetries: 3,
+    system: systemPrompt,
+    output: Output.object({ schema: AnswerKeyExtractionSchema }),
+    prompt: `Extract ALL question-answer pairs from these answer key pages:
 
 ${pagesContent}`,
   });
