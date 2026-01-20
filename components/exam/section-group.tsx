@@ -13,7 +13,12 @@ interface SectionGroupProps {
   questions: Question[];
   examId?: string;
   answersMap?: Map<string, UserAnswer>;
-  onAnswerChange?: (questionId: string, answerText: string | null, selectedOptionId: string | null) => void;
+  onAnswerChange?: (
+    questionId: string,
+    answerText: string | null,
+    selectedOptionId: string | null,
+    version?: number
+  ) => void;
   onAskAI?: (questionNumber: string) => void;
   // Optional controlled props for answer reveal sync
   revealedAnswers?: Record<string, boolean>;
@@ -63,8 +68,8 @@ export function SectionGroup({
           savedAnswer={answersMap?.get(question.id)}
           onAnswerChange={
             onAnswerChange
-              ? (answerText, selectedOptionId) =>
-                  onAnswerChange(question.id, answerText, selectedOptionId)
+              ? (answerText, selectedOptionId, version) =>
+                  onAnswerChange(question.id, answerText, selectedOptionId, version)
               : undefined
           }
           onAskAI={onAskAI}

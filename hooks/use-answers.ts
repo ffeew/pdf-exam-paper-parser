@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   UserAnswer,
@@ -94,10 +95,35 @@ export function useExamAnswers({
 
 export function useSubmitAnswer() {
   const queryClient = useQueryClient();
+  // Track the latest version per question to reject stale mutations
+  const latestVersionByQuestion = useRef<Map<string, number>>(new Map());
 
   return useMutation({
     mutationFn: submitAnswer,
-    onSuccess: (data, variables) => {
+    onMutate: (variables) => {
+      // Store the version if provided (for race condition handling)
+      if (variables.version !== undefined) {
+        latestVersionByQuestion.current.set(
+          variables.questionId,
+          variables.version
+        );
+      }
+      return { version: variables.version };
+    },
+    onSuccess: (data, variables, context) => {
+      // Check if this mutation is stale (a newer version was sent)
+      const latestVersion = latestVersionByQuestion.current.get(
+        variables.questionId
+      );
+      if (
+        context?.version !== undefined &&
+        latestVersion !== undefined &&
+        latestVersion !== context.version
+      ) {
+        // This mutation is stale, ignore the result to prevent overwriting newer data
+        return;
+      }
+
       // Update cache with new answer
       queryClient.setQueryData<GetAnswersResponse>(
         ["answers", variables.examId],

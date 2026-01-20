@@ -143,12 +143,18 @@ export default function ExamPage({
 
 	// Handle answer change
 	const handleAnswerChange = useCallback(
-		(questionId: string, answerText: string | null, selectedOptionId: string | null) => {
+		(
+			questionId: string,
+			answerText: string | null,
+			selectedOptionId: string | null,
+			version?: number
+		) => {
 			submitMutation.mutate({
 				examId: id,
 				questionId,
 				answerText,
 				selectedOptionId,
+				version,
 			});
 		},
 		[id, submitMutation]

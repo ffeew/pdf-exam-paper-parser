@@ -6,6 +6,7 @@ export const SubmitAnswerRequestSchema = z.object({
   questionId: z.string().min(1, "Question ID is required"),
   answerText: z.string().nullable(),
   selectedOptionId: z.string().nullable(),
+  version: z.number().optional(), // Client-side version for race condition handling
 });
 
 export type SubmitAnswerRequest = z.infer<typeof SubmitAnswerRequestSchema>;

@@ -57,12 +57,18 @@ export function AnswerSidePanel({
 
 	// Handle answer change
 	const handleAnswerChange = useCallback(
-		(questionId: string, answerText: string | null, selectedOptionId: string | null) => {
+		(
+			questionId: string,
+			answerText: string | null,
+			selectedOptionId: string | null,
+			version?: number
+		) => {
 			submitMutation.mutate({
 				examId,
 				questionId,
 				answerText,
 				selectedOptionId,
+				version,
 			});
 		},
 		[examId, submitMutation]
@@ -207,8 +213,8 @@ export function AnswerSidePanel({
 											question={question}
 											examId={examId}
 											savedAnswer={savedAnswer}
-											onAnswerChange={(answerText, selectedOptionId) =>
-												handleAnswerChange(question.id, answerText, selectedOptionId)
+											onAnswerChange={(answerText, selectedOptionId, version) =>
+												handleAnswerChange(question.id, answerText, selectedOptionId, version)
 											}
 										/>
 									</CardContent>

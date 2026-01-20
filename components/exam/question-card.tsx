@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LatexText } from "@/components/ui/latex-text";
@@ -21,7 +21,11 @@ interface QuestionCardProps {
   question: Question;
   examId?: string;
   savedAnswer?: UserAnswer;
-  onAnswerChange?: (answerText: string | null, selectedOptionId: string | null) => void;
+  onAnswerChange?: (
+    answerText: string | null,
+    selectedOptionId: string | null,
+    version?: number
+  ) => void;
   onAskAI?: (questionNumber: string) => void;
   // Optional controlled props for answer reveal
   showAnswer?: boolean;
@@ -54,27 +58,34 @@ export function QuestionCard({
   // Key prop on parent ensures this remounts when question changes
   const [localTextAnswer, setLocalTextAnswer] = useState(savedAnswer?.answerText ?? "");
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Track latest text value for debounced save to always use current value
+  const latestTextRef = useRef(savedAnswer?.answerText ?? "");
+  // Track save version to handle race conditions
+  const saveVersionRef = useRef(0);
+  // Keep latest callback ref to avoid stale closures
+  const onAnswerChangeRef = useRef(onAnswerChange);
+  useEffect(() => {
+    onAnswerChangeRef.current = onAnswerChange;
+  }, [onAnswerChange]);
 
   const displayOptionId = savedAnswer?.selectedOptionId ?? "";
 
-  // Debounced save for text inputs
-  const debouncedSave = useCallback(
-    (text: string) => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      debounceTimerRef.current = setTimeout(() => {
-        onAnswerChange?.(text || null, null);
-        debounceTimerRef.current = null;
-      }, 1000);
-    },
-    [onAnswerChange]
-  );
-
-  // Handle text input change
+  // Handle text input change with debounced save
   const handleTextChange = (value: string) => {
     setLocalTextAnswer(value);
-    debouncedSave(value);
+    latestTextRef.current = value;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      saveVersionRef.current += 1;
+      const currentVersion = saveVersionRef.current;
+      // Use refs to always get latest values, avoiding stale closures
+      onAnswerChangeRef.current?.(latestTextRef.current || null, null, currentVersion);
+      debounceTimerRef.current = null;
+    }, 1000);
   };
 
   // Handle MCQ option change (immediate save)
