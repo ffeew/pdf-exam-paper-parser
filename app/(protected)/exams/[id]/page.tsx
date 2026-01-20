@@ -9,6 +9,8 @@ import { SectionGroup } from "@/components/exam/section-group";
 import { QuestionImage } from "@/components/exam/question-image";
 import { ExamViewToggle, type ViewMode } from "@/components/exam/exam-view-toggle";
 import { DocumentView } from "@/components/exam/document-view";
+import { AnswerSidePanel } from "@/components/exam/answer-side-panel";
+import { AIChatPanel } from "@/components/exam/ai-chat-panel";
 import type { Question, Section } from "@/app/api/exams/[id]/validator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -119,6 +121,14 @@ export default function ExamPage({
   const { data: session, isPending: isSessionLoading } = useSession();
   const { data: exam, isLoading, error } = useExam(id);
   const [viewMode, setViewMode] = useState<ViewMode>("structured");
+  const [selectedQuestionForChat, setSelectedQuestionForChat] = useState<string | null>(null);
+  const [isChatPanelOpen, setIsChatPanelOpen] = useState(false);
+
+  // Handle "Ask AI" button click - opens panel and selects question
+  const handleAskAI = (questionNumber: string) => {
+    setSelectedQuestionForChat(questionNumber);
+    setIsChatPanelOpen(true);
+  };
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -169,15 +179,11 @@ export default function ExamPage({
   const hasDocumentMarkdown = Boolean(exam.documentMarkdown);
 
   return (
-    <div className={cn(
-      "p-8 max-w-7xl mx-auto",
-      viewMode === "document" && hasDocumentMarkdown &&
-        "fixed inset-0 left-64 flex flex-col overflow-hidden bg-background"
-    )}>
+    <div className="fixed inset-0 left-64 flex flex-col overflow-hidden bg-background p-8">
       <ExamHeader exam={exam} />
 
       {hasDocumentMarkdown && (
-        <div className="flex items-center gap-3 mt-6 mb-4">
+        <div className="flex items-center gap-3 mt-6 mb-4 shrink-0">
           <span className="text-sm text-muted-foreground">View:</span>
           <ExamViewToggle view={viewMode} onViewChange={setViewMode} />
         </div>
@@ -186,47 +192,78 @@ export default function ExamPage({
       {viewMode === "document" && hasDocumentMarkdown ? (
         <div className="flex-1 min-h-0">
           <DocumentView
+            examId={id}
             markdown={exam.documentMarkdown!}
             questions={exam.questions}
           />
         </div>
       ) : (
-        <div className={!hasDocumentMarkdown ? "mt-6" : ""}>
-          {/* Exam-level images (not linked to specific questions) */}
-          {exam.examImages && exam.examImages.length > 0 && (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle className="text-lg">Exam Reference Materials</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-4 flex-wrap">
-                  {exam.examImages.map((img) => (
-                    <QuestionImage key={img.id} image={img} />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <div className={cn("flex flex-1 gap-4 min-h-0", !hasDocumentMarkdown && "mt-6")}>
+          {/* Main content - Questions */}
+          <div
+            className={cn(
+              "overflow-y-auto rounded-lg transition-all duration-300",
+              isChatPanelOpen ? "flex-[0_0_65%]" : "flex-1"
+            )}
+          >
+            {/* Exam-level images (not linked to specific questions) */}
+            {exam.examImages && exam.examImages.length > 0 && (
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle className="text-lg">Exam Reference Materials</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-4 flex-wrap">
+                    {exam.examImages.map((img) => (
+                      <QuestionImage key={img.id} image={img} />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          <div className="space-y-8">
-            {groupQuestionsBySection(exam.sections, exam.questions).map((group, index) => (
-              <SectionGroup
-                key={`section-${index}`}
-                sectionName={group.sectionName}
-                sectionInstructions={group.sectionInstructions}
-                questions={group.questions}
-              />
-            ))}
+            <div className="space-y-8">
+              {groupQuestionsBySection(exam.sections, exam.questions).map((group, index) => (
+                <SectionGroup
+                  key={`section-${index}`}
+                  sectionName={group.sectionName}
+                  sectionInstructions={group.sectionInstructions}
+                  questions={group.questions}
+                  onAskAI={handleAskAI}
+                />
+              ))}
+            </div>
+
+            {exam.questions.length === 0 && (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">
+                    No questions found in this exam.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          {exam.questions.length === 0 && (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">
-                  No questions found in this exam.
-                </p>
-              </CardContent>
-            </Card>
+          {/* Side Panel - Ask AI (only visible when open) */}
+          {isChatPanelOpen && (
+            <div
+              className="rounded-lg border bg-card overflow-hidden flex-[0_0_35%]"
+            >
+              {selectedQuestionForChat && exam.questions.find(q => q.questionNumber === selectedQuestionForChat) ? (
+                <AIChatPanel
+                  examId={id}
+                  question={exam.questions.find(q => q.questionNumber === selectedQuestionForChat)!}
+                  questions={exam.questions}
+                  onQuestionChange={setSelectedQuestionForChat}
+                  onClose={() => setIsChatPanelOpen(false)}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-4">
+                  Select a question to start chatting
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { LatexText } from "@/components/ui/latex-text";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { McqQuestion } from "./mcq-question";
@@ -8,13 +9,15 @@ import { FillBlankQuestion } from "./fill-blank-question";
 import { ShortAnswerQuestion } from "./short-answer-question";
 import { LongAnswerQuestion } from "./long-answer-question";
 import { QuestionImage } from "./question-image";
+import { MessageCircle } from "lucide-react";
 import type { Question } from "@/app/api/exams/[id]/validator";
 
 interface QuestionCardProps {
   question: Question;
+  onAskAI?: (questionNumber: string) => void;
 }
 
-export function QuestionCard({ question }: QuestionCardProps) {
+export function QuestionCard({ question, onAskAI }: QuestionCardProps) {
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -22,11 +25,24 @@ export function QuestionCard({ question }: QuestionCardProps) {
           <CardTitle className="text-lg">
             Question {question.questionNumber}
           </CardTitle>
-          {question.marks && (
-            <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded">
-              {question.marks} {question.marks === 1 ? "mark" : "marks"}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {question.marks && (
+              <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded">
+                {question.marks} {question.marks === 1 ? "mark" : "marks"}
+              </span>
+            )}
+            {onAskAI && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => onAskAI(question.questionNumber)}
+              >
+                <MessageCircle className="h-3 w-3 mr-1" />
+                Ask AI
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
 

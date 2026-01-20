@@ -9,11 +9,12 @@ import { cn } from "@/lib/utils";
 import type { Question } from "@/app/api/exams/[id]/validator";
 
 interface DocumentViewProps {
+  examId: string;
   markdown: string;
   questions: Question[];
 }
 
-export function DocumentView({ markdown, questions }: DocumentViewProps) {
+export function DocumentView({ examId, markdown, questions }: DocumentViewProps) {
   const documentRef = useRef<HTMLDivElement>(null);
   const [activeQuestionNumber, setActiveQuestionNumber] = useState<string | null>(null);
   const questionRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -266,6 +267,7 @@ export function DocumentView({ markdown, questions }: DocumentViewProps) {
         style={{ flex: "0 0 35%" }}
       >
         <AnswerSidePanel
+          examId={examId}
           questions={questions}
           activeQuestionNumber={activeQuestionNumber}
           onQuestionClick={handleQuestionClick}

@@ -10,12 +10,14 @@ interface SectionGroupProps {
   sectionName: string | null;
   sectionInstructions: string | null;
   questions: Question[];
+  onAskAI?: (questionNumber: string) => void;
 }
 
 export function SectionGroup({
   sectionName,
   sectionInstructions,
   questions,
+  onAskAI,
 }: SectionGroupProps) {
   return (
     <div className="space-y-4">
@@ -42,7 +44,7 @@ export function SectionGroup({
 
       {/* Questions in this section */}
       {questions.map((question) => (
-        <QuestionCard key={question.id} question={question} />
+        <QuestionCard key={question.id} question={question} onAskAI={onAskAI} />
       ))}
     </div>
   );
