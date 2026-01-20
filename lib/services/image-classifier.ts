@@ -1,10 +1,21 @@
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 import { createGroq } from "@ai-sdk/groq";
+import { z } from "zod";
 import { env } from "@/lib/config/env";
 import type { OcrImage } from "./ocr";
 
 const groq = createGroq({
   apiKey: env.GROQ_API_KEY,
+});
+
+const ClassificationSchema = z.object({
+  classification: z
+    .enum(["content", "administrative"])
+    .describe("Whether the image is exam content or administrative"),
+  confidence: z
+    .enum(["low", "medium", "high"])
+    .describe("Confidence level of the classification"),
+  reason: z.string().describe("Brief explanation for the classification"),
 });
 
 export interface ImageClassification {
@@ -33,7 +44,7 @@ export function classifyByPosition(image: OcrImage): ImageClassification {
     (imageWidth * imageHeight) / (image.pageWidth * image.pageHeight);
 
   // Heuristics for administrative images:
-  // 1. Very small images (<2% of page) are likely logos/icons
+  // 1. Very small images (<1% of page) are likely logos/icons
   // 2. Small images (<5% of page) in bottom corners are likely score boxes
   // 3. Images in the top margin with small height are likely headers
 
@@ -42,7 +53,7 @@ export function classifyByPosition(image: OcrImage): ImageClassification {
     image.topLeftX / image.pageWidth < 0.3 && relativeY > 0.8;
   const isInTopArea = relativeTopY < 0.15;
   const isSmall = relativeArea < 0.05; // Less than 5% of page
-  const isVerySmall = relativeArea < 0.02; // Less than 2% of page
+  const isVerySmall = relativeArea < 0.01; // Less than 1% of page
 
   // Very small images are likely decorative
   if (isVerySmall) {
@@ -84,11 +95,41 @@ export function classifyByPosition(image: OcrImage): ImageClassification {
 }
 
 /**
+ * Extracts surrounding text context for an image from the page markdown.
+ * Returns ~200 chars before and after the image reference.
+ */
+export function extractSurroundingContext(
+  markdown: string,
+  imageId: string,
+  contextChars: number = 200
+): string | null {
+  // Find the image reference in the markdown
+  const imagePattern = new RegExp(`!?\\[[^\\]]*\\]\\(${imageId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`);
+  const match = markdown.match(imagePattern);
+
+  if (!match || match.index === undefined) {
+    return null;
+  }
+
+  const start = Math.max(0, match.index - contextChars);
+  const end = Math.min(markdown.length, match.index + match[0].length + contextChars);
+
+  let context = markdown.slice(start, end);
+
+  // Add ellipsis if truncated
+  if (start > 0) context = "..." + context;
+  if (end < markdown.length) context = context + "...";
+
+  return context;
+}
+
+/**
  * Classifies an image using a vision LLM (llama-4-maverick).
  * Use this for uncertain cases where position heuristics are not confident.
  */
 export async function classifyWithVisionLLM(
-  image: OcrImage
+  image: OcrImage,
+  surroundingContext?: string | null
 ): Promise<ImageClassification> {
   if (!image.base64) {
     return {
@@ -99,9 +140,16 @@ export async function classifyWithVisionLLM(
     };
   }
 
+  const contextSection = surroundingContext
+    ? `\n\nSURROUNDING TEXT CONTEXT (where this image appears in the document):\n${surroundingContext}`
+    : "";
+
   try {
-    const { text } = await generateText({
+    const { output } = await generateText({
       model: groq("meta-llama/llama-4-maverick-17b-128e-instruct"),
+      system: `You are an image classifier for Singapore school exam papers. Your task is to determine whether an image is educational content that students need for answering questions, or administrative/decorative elements that should be filtered out.
+
+Be conservative: when in doubt, classify as "content" to avoid removing important educational material.`,
       messages: [
         {
           role: "user",
@@ -112,50 +160,44 @@ export async function classifyWithVisionLLM(
             },
             {
               type: "text",
-              text: `Classify this image from an exam paper into one of two categories:
+              text: `Classify this image.
 
-1. CONTENT - Images that are part of exam questions:
-   - Diagrams, figures, charts, graphs
-   - Illustrations for questions
-   - Maps, tables with data
-   - Mathematical figures or shapes
-   - Pictures that students need to analyze
+CONTENT - Images students need for questions:
+- Diagrams, figures, charts, graphs
+- Illustrations referenced by questions
+- Reading passages, notices, flyers
+- Mathematical figures or shapes
+- Pictures to analyze
 
-2. ADMINISTRATIVE - Images that are NOT part of questions:
-   - Score tally boxes or marking grids
-   - School logos or emblems
-   - Watermarks
-   - Page headers or footers
-   - Decorative borders or elements
-   - QR codes or barcodes
+ADMINISTRATIVE - Non-educational images:
+- Score tally boxes or marking grids
+- School logos or emblems
+- Watermarks, headers, footers
+- Decorative borders
+- QR codes or barcodes
 
-Respond with ONLY a JSON object in this exact format:
-{"classification": "content" | "administrative", "confidence": "low" | "medium" | "high", "reason": "brief explanation"}`,
+This is the context where the image appears in the document:
+${contextSection}
+`,
             },
           ],
         },
       ],
+      output: Output.object({ schema: ClassificationSchema }),
       temperature: 0.1,
       maxRetries: 2,
     });
 
-    // Parse the JSON response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      const validConfidences = ["low", "medium", "high"] as const;
-      const confidence = validConfidences.includes(parsed.confidence)
-        ? (parsed.confidence as "low" | "medium" | "high")
-        : "medium";
+    if (output) {
       return {
         imageId: image.id,
-        classification: parsed.classification === "content" ? "content" : "administrative",
-        confidence,
-        reason: parsed.reason || "Vision LLM classification",
+        classification: output.classification,
+        confidence: output.confidence,
+        reason: output.reason,
       };
     }
 
-    // If parsing fails, fall back to position-based
+    // If output is null, fall back to position-based
     return classifyByPosition(image);
   } catch (error) {
     console.error(`Vision LLM classification failed for ${image.id}:`, error);

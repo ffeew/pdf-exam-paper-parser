@@ -1,7 +1,8 @@
 import { and, eq, asc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { exams, questions, answerOptions, images } from "@/lib/db/schema";
+import { exams, sections, questions, answerOptions, images } from "@/lib/db/schema";
 import { getDownloadUrl } from "@/lib/storage";
+import { replaceMarkdownImageUrls } from "@/lib/utils/markdown";
 
 export async function getExamStatus(examId: string, userId: string) {
   const exam = await db.query.exams.findFirst({
@@ -27,6 +28,12 @@ export async function getExamWithQuestions(examId: string, userId: string) {
     return null;
   }
 
+  // Fetch sections for this exam
+  const examSections = await db.query.sections.findMany({
+    where: eq(sections.examId, examId),
+    orderBy: [asc(sections.orderIndex)],
+  });
+
   // Fetch questions with their options and images
   const examQuestions = await db.query.questions.findMany({
     where: eq(questions.examId, examId),
@@ -38,31 +45,35 @@ export async function getExamWithQuestions(examId: string, userId: string) {
   const allOptions =
     questionIds.length > 0
       ? await db.query.answerOptions.findMany({
-          where: (opts, { inArray }) => inArray(opts.questionId, questionIds),
-          orderBy: [asc(answerOptions.orderIndex)],
-        })
+        where: (opts, { inArray }) => inArray(opts.questionId, questionIds),
+        orderBy: [asc(answerOptions.orderIndex)],
+      })
       : [];
 
-  // Fetch all images for these questions
-  const allImages =
-    questionIds.length > 0
-      ? await db.query.images.findMany({
-          where: (imgs, { inArray, or, and: dbAnd, eq: dbEq }) =>
-            or(
-              inArray(imgs.questionId, questionIds),
-              dbAnd(dbEq(imgs.examId, examId), dbEq(imgs.questionId, null as unknown as string))
-            ),
-          orderBy: [asc(images.orderIndex)],
-        })
-      : [];
+  // Fetch all images for this exam (both question-linked and exam-level)
+  const allImages = await db.query.images.findMany({
+    where: eq(images.examId, examId),
+    orderBy: [asc(images.orderIndex)],
+  });
 
-  // Generate presigned URLs for all images
+  // Generate presigned URLs for all images, preserving original R2 key for mapping
   const imagesWithUrls = await Promise.all(
     allImages.map(async (img) => ({
       ...img,
+      originalKey: img.imageUrl, // Keep the R2 key for OCR image ID mapping
       imageUrl: await getDownloadUrl(img.imageUrl, 3600),
     }))
   );
+
+  // Build OCR image ID to presigned URL map for section instruction images
+  const imageIdToUrl = new Map<string, string>();
+  for (const img of imagesWithUrls) {
+    // Extract OCR image ID from R2 key: "images/{examId}/img-1.jpeg.png" -> "img-1.jpeg"
+    const filename = img.originalKey.split("/").pop() || "";
+    // Remove extension that was added during upload (e.g., ".png" from "img-1.jpeg.png")
+    const ocrId = filename.replace(/\.(png|jpg|jpeg|webp|gif)$/i, "");
+    imageIdToUrl.set(ocrId, img.imageUrl);
+  }
 
   // Group options and images by question
   const optionsByQuestion = new Map<string, typeof allOptions>();
@@ -92,8 +103,7 @@ export async function getExamWithQuestions(examId: string, userId: string) {
     questionText: q.questionText,
     questionType: q.questionType,
     marks: q.marks,
-    section: q.section,
-    sectionInstructions: q.sectionInstructions,
+    sectionId: q.sectionId,
     context: q.context,
     expectedAnswer: q.expectedAnswer,
     orderIndex: q.orderIndex,
@@ -123,6 +133,14 @@ export async function getExamWithQuestions(examId: string, userId: string) {
     hasAnswerKey: exam.hasAnswerKey,
     answerKeyConfidence: exam.answerKeyConfidence,
     createdAt: exam.createdAt.toISOString(),
+    sections: examSections.map((s) => ({
+      id: s.id,
+      sectionName: s.sectionName,
+      instructions: s.instructions
+        ? replaceMarkdownImageUrls(s.instructions, imageIdToUrl)
+        : null,
+      orderIndex: s.orderIndex,
+    })),
     questions: questionsWithDetails,
     examImages: examLevelImages.map((img) => ({
       id: img.id,

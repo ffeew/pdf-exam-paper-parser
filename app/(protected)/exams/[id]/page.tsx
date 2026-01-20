@@ -7,7 +7,7 @@ import { useExam } from "@/hooks/use-exam";
 import { ExamHeader } from "@/components/exam/exam-header";
 import { SectionGroup } from "@/components/exam/section-group";
 import { QuestionImage } from "@/components/exam/question-image";
-import type { Question } from "@/app/api/exams/[id]/validator";
+import type { Question, Section } from "@/app/api/exams/[id]/validator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -60,38 +60,46 @@ interface SectionGroupData {
   questions: Question[];
 }
 
-function groupQuestionsBySection(questions: Question[]): SectionGroupData[] {
+function groupQuestionsBySection(
+  sectionsData: Section[],
+  questionsData: Question[]
+): SectionGroupData[] {
+  // Build a map of sectionId -> Section
+  const sectionMap = new Map<string, Section>();
+  for (const section of sectionsData) {
+    sectionMap.set(section.id, section);
+  }
+
+  // Group questions by sectionId
+  const questionsBySectionId = new Map<string | null, Question[]>();
+  for (const question of questionsData) {
+    const key = question.sectionId;
+    const existing = questionsBySectionId.get(key) || [];
+    existing.push(question);
+    questionsBySectionId.set(key, existing);
+  }
+
   const groups: SectionGroupData[] = [];
 
-  let currentSection: string | null = null;
-  let currentGroup: Question[] = [];
-  let currentInstructions: string | null = null;
-
-  for (const question of questions) {
-    if (question.section !== currentSection) {
-      // Save previous group
-      if (currentGroup.length > 0) {
-        groups.push({
-          sectionName: currentSection,
-          sectionInstructions: currentInstructions,
-          questions: currentGroup,
-        });
-      }
-      // Start new group
-      currentSection = question.section;
-      currentInstructions = question.sectionInstructions;
-      currentGroup = [question];
-    } else {
-      currentGroup.push(question);
+  // Add sections in order with their questions
+  for (const section of sectionsData) {
+    const sectionQuestions = questionsBySectionId.get(section.id) || [];
+    if (sectionQuestions.length > 0) {
+      groups.push({
+        sectionName: section.sectionName || null,
+        sectionInstructions: section.instructions,
+        questions: sectionQuestions,
+      });
     }
   }
 
-  // Save last group
-  if (currentGroup.length > 0) {
+  // Add questions without a section (sectionId is null)
+  const unsectionedQuestions = questionsBySectionId.get(null) || [];
+  if (unsectionedQuestions.length > 0) {
     groups.push({
-      sectionName: currentSection,
-      sectionInstructions: currentInstructions,
-      questions: currentGroup,
+      sectionName: null,
+      sectionInstructions: null,
+      questions: unsectionedQuestions,
     });
   }
 
@@ -175,7 +183,7 @@ export default function ExamPage({
       )}
 
       <div className="space-y-8 mt-8">
-        {groupQuestionsBySection(exam.questions).map((group, index) => (
+        {groupQuestionsBySection(exam.sections, exam.questions).map((group, index) => (
           <SectionGroup
             key={`section-${index}`}
             sectionName={group.sectionName}

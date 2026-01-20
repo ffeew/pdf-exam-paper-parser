@@ -43,6 +43,8 @@ export function MarkdownText({ text, className }: MarkdownTextProps) {
         "[&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-2",
         // Horizontal rule
         "[&_hr]:my-4 [&_hr]:border-border",
+        // Images
+        "[&_img]:max-w-full [&_img]:h-auto [&_img]:my-2 [&_img]:rounded",
         className
       )}
     >

@@ -14,14 +14,20 @@ export const QuestionImageSchema = z.object({
   altText: z.string().nullable(),
 });
 
+export const SectionSchema = z.object({
+  id: z.string(),
+  sectionName: z.string(),
+  instructions: z.string().nullable(),
+  orderIndex: z.number(),
+});
+
 export const QuestionSchema = z.object({
   id: z.string(),
   questionNumber: z.string(),
   questionText: z.string(),
   questionType: z.enum(["mcq", "fill_blank", "short_answer", "long_answer"]),
   marks: z.number().nullable(),
-  section: z.string().nullable(),
-  sectionInstructions: z.string().nullable(),
+  sectionId: z.string().nullable(),
   context: z.string().nullable(),
   expectedAnswer: z.string().nullable(),
   orderIndex: z.number(),
@@ -41,12 +47,14 @@ export const ExamWithQuestionsSchema = z.object({
   hasAnswerKey: z.boolean().nullable(),
   answerKeyConfidence: z.enum(["high", "medium", "low"]).nullable(),
   createdAt: z.string(),
+  sections: z.array(SectionSchema),
   questions: z.array(QuestionSchema),
   examImages: z.array(QuestionImageSchema),
 });
 
 export type ExamWithQuestions = z.infer<typeof ExamWithQuestionsSchema>;
 export type Question = z.infer<typeof QuestionSchema>;
+export type Section = z.infer<typeof SectionSchema>;
 
 // Status response for polling
 export const ExamStatusSchema = z.object({

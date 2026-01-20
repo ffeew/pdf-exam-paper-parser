@@ -17,6 +17,19 @@ const AnswerOptionSchema = z.object({
     .describe("Whether this is the correct answer, null if unknown"),
 });
 
+const SectionSchema = z.object({
+  sectionName: z
+    .string()
+    .describe("The section title/name (e.g., '一、辨字测验', 'Section A', 'Part 1')"),
+  instructions: z
+    .string()
+    .nullable()
+    .describe("Section instructions, word banks, reading passages, or shared context for all questions in this section"),
+  questionNumbers: z
+    .array(z.string())
+    .describe("List of question numbers belonging to this section (e.g., ['1', '2', '3'] or ['5a', '5b', '5c'])"),
+});
+
 const QuestionSchema = z.object({
   questionNumber: z
     .string()
@@ -32,17 +45,10 @@ const QuestionSchema = z.object({
     .number()
     .nullable()
     .describe("The number of marks for this question, null if not shown"),
-  section: z
-    .string()
-    .nullable()
-    .describe("The section title/name this question belongs to (e.g., '一、辨字测验', 'Section A', 'Part 1'), null if none"),
-  sectionInstructions: z
-    .string()
-    .describe("Section instructions on FIRST question only, empty string for others"),
   context: z
     .string()
     .nullable()
-    .describe("Contextual passage, sentence, or reference text needed to answer THIS specific question. Different from instructions (how to answer) and sectionInstructions (shared content for multiple questions). Examples: vocabulary-in-context sentences with highlighted words, grammar examples with errors to identify."),
+    .describe("Contextual passage, sentence, or reference text needed to answer THIS specific question. Different from instructions (how to answer) and section instructions (shared content for multiple questions). Examples: vocabulary-in-context sentences with highlighted words, grammar examples with errors to identify."),
   options: z
     .array(AnswerOptionSchema)
     .nullable()
@@ -64,11 +70,13 @@ const ExamExtractionSchema = z.object({
   grade: z.string().nullable().describe("The grade level (e.g., 'Primary 4'), null if not found"),
   schoolName: z.string().nullable().describe("The school name if visible, null if not found"),
   totalMarks: z.number().nullable().describe("The total marks for the exam, null if not found"),
+  sections: z.array(SectionSchema).describe("All sections in the exam, in order. Questions without a clear section should be grouped into a section with an empty sectionName."),
   questions: z.array(QuestionSchema).describe("All questions in the exam"),
 });
 
 export type ExtractedExam = z.infer<typeof ExamExtractionSchema>;
 export type ExtractedQuestion = z.infer<typeof QuestionSchema>;
+export type ExtractedSection = z.infer<typeof SectionSchema>;
 
 export async function extractQuestionsWithLlm(
   pages: OcrPage[]
@@ -89,23 +97,27 @@ CRITICAL RULES:
    - Chinese: "不 (1馆 2管 3官 4观) 怎么说" → questionText: "不______怎么说"
    - English: Do NOT include "A, B, C, D" options in questionText (extract to options array)
 
-2. SECTION INSTRUCTIONS - Include on FIRST question only:
+2. SECTIONS - Extract sections SEPARATELY from questions:
+   - Output sections as a separate array with sectionName, instructions, and questionNumbers
    - Section formats: Chinese "一、辨字测验", English "Section A", "Part 1"
-   - Later questions in same section: sectionInstructions = ""
-   - MUST include ALL shared context students need: word banks, reading passages, reference tables, cloze text
+   - instructions: MUST include ALL shared context students need: word banks, reading passages, reference tables, cloze text
    - For comprehension: Include the COMPLETE passage word-for-word (not summarized)
+   - questionNumbers: List ALL question numbers that belong to this section (e.g., ["1", "2", "3"] or ["5a", "5b", "5c"])
+   - Questions without a clear section should be grouped into a section with sectionName="" (empty string)
 
-3. SUB-QUESTIONS - Extract as separate questions:
+3. SUB-QUESTIONS - Extract as separate questions, all belonging to same section:
    Original: "21. List three toys Ming made. [3m] (i)___ (ii)___ (iii)___"
 
    CORRECT:
-   - 21i: questionText="List the first toy." | sectionInstructions="List three toys Ming made."
-   - 21ii: questionText="List the second toy." | sectionInstructions=""
-   - 21iii: questionText="List the third toy." | sectionInstructions=""
+   - Section: sectionName="List three toys Ming made." | questionNumbers=["21i", "21ii", "21iii"]
+   - 21i: questionText="List the first toy."
+   - 21ii: questionText="List the second toy."
+   - 21iii: questionText="List the third toy."
 
    Another example - "5. Look at the graph: (a) Highest value? (b) Lowest value?"
-   - 5a: questionText="What is the highest value?" | sectionInstructions="Look at the graph above..."
-   - 5b: questionText="What is the lowest value?" | sectionInstructions=""
+   - Section: sectionName="Look at the graph above..." | questionNumbers=["5a", "5b"]
+   - 5a: questionText="What is the highest value?"
+   - 5b: questionText="What is the lowest value?"
 
 4. IMAGES - Link only content images (diagrams, figures, charts):
    - Image refs in markdown: ![img-0.jpeg](img-0.jpeg)
@@ -113,7 +125,7 @@ CRITICAL RULES:
 
 5. QUESTION-SPECIFIC CONTEXT - Extract contextual content needed to answer individual questions:
    - Use "context" field for sentences/passages that apply to ONE question only
-   - Use "sectionInstructions" for content shared across MULTIPLE questions
+   - Use section "instructions" for content shared across MULTIPLE questions
 
    EXAMPLES OF CONTEXT:
    - Vocabulary-in-context: "He was **delighted** that he was moving fast and was **confident** that he would be the winner."

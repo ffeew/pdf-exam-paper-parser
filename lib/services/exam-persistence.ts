@@ -1,12 +1,12 @@
 import { randomUUID } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { exams, questions, answerOptions, images } from "@/lib/db/schema";
+import { exams, sections, questions, answerOptions, images } from "@/lib/db/schema";
 import { uploadBuffer } from "@/lib/storage";
 import type { ExtractedExam } from "./question-extractor";
 import type { OcrResult } from "./ocr";
 import type { AnswerKeyResult } from "./answer-key-validator";
-import { classifyByPosition, classifyWithVisionLLM } from "./image-classifier";
+import { classifyByPosition, classifyWithVisionLLM, extractSurroundingContext } from "./image-classifier";
 
 function getExtension(mimeType: string): string {
   const map: Record<string, string> = {
@@ -23,9 +23,22 @@ interface UploadedImage {
   pageNumber: number;
 }
 
+// Extract image IDs from markdown text (matches ![...](img-X.jpeg) patterns)
+const MARKDOWN_IMAGE_PATTERN = /!\[[^\]]*\]\(([^)]+)\)/g;
+
+function extractImageIdsFromText(text: string): Set<string> {
+  const ids = new Set<string>();
+  let match;
+  while ((match = MARKDOWN_IMAGE_PATTERN.exec(text)) !== null) {
+    ids.add(match[1]);
+  }
+  return ids;
+}
+
 async function uploadExtractedImages(
   examId: string,
-  ocrResult: OcrResult
+  ocrResult: OcrResult,
+  requiredImageIds: Set<string> = new Set()
 ): Promise<Map<string, UploadedImage>> {
   const imageMap = new Map<string, UploadedImage>();
 
@@ -33,29 +46,40 @@ async function uploadExtractedImages(
     for (const img of page.images) {
       if (!img.base64) continue;
 
-      // Classify image to filter out administrative elements (score boxes, logos, etc.)
-      let classification = classifyByPosition(img);
+      // Always include images that are explicitly referenced in section instructions
+      const isRequired = requiredImageIds.has(img.id);
 
-      // For medium/low confidence, use vision LLM for verification
-      if (classification.confidence !== "high") {
-        console.log(
-          `[${examId}] Position heuristics uncertain for ${img.id} (${classification.confidence}), using vision LLM...`
-        );
-        classification = await classifyWithVisionLLM(img);
-        console.log(
-          `[${examId}] Vision LLM result for ${img.id}: ${classification.classification} (${classification.confidence}) - ${classification.reason}`
-        );
-      }
+      if (!isRequired) {
+        // Classify image to filter out administrative elements (score boxes, logos, etc.)
+        let classification = classifyByPosition(img);
 
-      // Skip administrative images with high confidence
-      if (
-        classification.classification === "administrative" &&
-        classification.confidence === "high"
-      ) {
+        // For medium/low confidence, use vision LLM for verification
+        if (classification.confidence !== "high") {
+          console.log(
+            `[${examId}] Position heuristics uncertain for ${img.id} (${classification.confidence}), using vision LLM...`
+          );
+          // Extract surrounding text context from the page markdown
+          const surroundingContext = extractSurroundingContext(page.markdown, img.id);
+          classification = await classifyWithVisionLLM(img, surroundingContext);
+          console.log(
+            `[${examId}] Vision LLM result for ${img.id}: ${classification.classification} (${classification.confidence}) - ${classification.reason}`
+          );
+        }
+
+        // Skip administrative images with high confidence
+        if (
+          classification.classification === "administrative" &&
+          classification.confidence === "high"
+        ) {
+          console.log(
+            `[${examId}] Skipping administrative image: ${img.id} (${classification.reason})`
+          );
+          continue;
+        }
+      } else {
         console.log(
-          `[${examId}] Skipping administrative image: ${img.id} (${classification.reason})`
+          `[${examId}] Including required image: ${img.id} (referenced in section instructions)`
         );
-        continue;
       }
 
       // Convert base64 to buffer
@@ -96,8 +120,44 @@ export async function saveExtractedData(
     })
     .where(eq(exams.id, examId));
 
+  // Collect image IDs referenced in section instructions (these bypass admin filter)
+  const requiredImageIds = new Set<string>();
+  if (extracted.sections) {
+    for (const section of extracted.sections) {
+      if (section.instructions) {
+        const ids = extractImageIdsFromText(section.instructions);
+        ids.forEach((id) => requiredImageIds.add(id));
+      }
+    }
+  }
+
   // Upload extracted images to R2 and get their keys + page numbers
-  const imageMap = await uploadExtractedImages(examId, ocrResult);
+  const imageMap = await uploadExtractedImages(examId, ocrResult, requiredImageIds);
+
+  // Create sections and build questionNumber -> sectionId map
+  const questionToSectionMap = new Map<string, string>();
+  const now = new Date();
+
+  if (extracted.sections && extracted.sections.length > 0) {
+    for (let i = 0; i < extracted.sections.length; i++) {
+      const s = extracted.sections[i];
+      const sectionId = randomUUID();
+
+      await db.insert(sections).values({
+        id: sectionId,
+        examId,
+        sectionName: s.sectionName,
+        instructions: s.instructions,
+        orderIndex: i,
+        createdAt: now,
+      });
+
+      // Map each question number to this section
+      for (const qNum of s.questionNumbers) {
+        questionToSectionMap.set(normalizeQuestionNumber(qNum), sectionId);
+      }
+    }
+  }
 
   // Map from extraction index to database questionId
   const questionIdByIndex = new Map<number, string>();
@@ -106,17 +166,19 @@ export async function saveExtractedData(
   for (let i = 0; i < extracted.questions.length; i++) {
     const q = extracted.questions[i];
     const questionId = randomUUID();
-    const now = new Date();
+
+    // Look up sectionId from the map
+    const normalizedQNum = normalizeQuestionNumber(q.questionNumber);
+    const sectionId = questionToSectionMap.get(normalizedQNum) || null;
 
     await db.insert(questions).values({
       id: questionId,
       examId,
+      sectionId,
       questionNumber: q.questionNumber,
       questionText: q.questionText,
       questionType: q.questionType,
       marks: q.marks,
-      section: q.section,
-      sectionInstructions: q.sectionInstructions || null,
       context: q.context || null,
       expectedAnswer: q.expectedAnswer,
       orderIndex: i,

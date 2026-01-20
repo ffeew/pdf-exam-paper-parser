@@ -34,20 +34,33 @@ export const exams = sqliteTable("exams", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
+// Sections table (normalized from questions)
+export const sections = sqliteTable("sections", {
+  id: text("id").primaryKey(),
+  examId: text("exam_id")
+    .notNull()
+    .references(() => exams.id, { onDelete: "cascade" }),
+  sectionName: text("section_name").notNull(),
+  instructions: text("instructions"),
+  orderIndex: integer("order_index").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
 // Questions table
 export const questions = sqliteTable("questions", {
   id: text("id").primaryKey(),
   examId: text("exam_id")
     .notNull()
     .references(() => exams.id, { onDelete: "cascade" }),
+  sectionId: text("section_id").references(() => sections.id, {
+    onDelete: "set null",
+  }),
   questionNumber: text("question_number").notNull(),
   questionText: text("question_text").notNull(),
   questionType: text("question_type", {
     enum: ["mcq", "fill_blank", "short_answer", "long_answer"],
   }).notNull(),
   marks: integer("marks"),
-  section: text("section"),
-  sectionInstructions: text("section_instructions"),
   context: text("context"), // Question-specific contextual content needed to answer this question
   expectedAnswer: text("expected_answer"),
   orderIndex: integer("order_index").notNull(),
@@ -124,16 +137,29 @@ export const userAnswers = sqliteTable("user_answers", {
 
 // Relations
 export const examsRelations = relations(exams, ({ many }) => ({
+  sections: many(sections),
   questions: many(questions),
   images: many(images),
   chatMessages: many(chatMessages),
   userAnswers: many(userAnswers),
 }));
 
+export const sectionsRelations = relations(sections, ({ one, many }) => ({
+  exam: one(exams, {
+    fields: [sections.examId],
+    references: [exams.id],
+  }),
+  questions: many(questions),
+}));
+
 export const questionsRelations = relations(questions, ({ one, many }) => ({
   exam: one(exams, {
     fields: [questions.examId],
     references: [exams.id],
+  }),
+  section: one(sections, {
+    fields: [questions.sectionId],
+    references: [sections.id],
   }),
   answerOptions: many(answerOptions),
   images: many(images),
