@@ -7,9 +7,11 @@ import { useExam } from "@/hooks/use-exam";
 import { ExamHeader } from "@/components/exam/exam-header";
 import { SectionGroup } from "@/components/exam/section-group";
 import { QuestionImage } from "@/components/exam/question-image";
-import { ExamViewToggle, type ViewMode } from "@/components/exam/exam-view-toggle";
+import {
+	ExamViewToggle,
+	type ViewMode,
+} from "@/components/exam/exam-view-toggle";
 import { DocumentView } from "@/components/exam/document-view";
-import { AnswerSidePanel } from "@/components/exam/answer-side-panel";
 import { AIChatPanel } from "@/components/exam/ai-chat-panel";
 import type { Question, Section } from "@/app/api/exams/[id]/validator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,256 +19,274 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 function ExamSkeleton() {
-  return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
-      <Skeleton className="h-32 w-full" />
-      <Skeleton className="h-48 w-full" />
-      <Skeleton className="h-48 w-full" />
-      <Skeleton className="h-48 w-full" />
-    </div>
-  );
+	return (
+		<div className="p-8 max-w-4xl mx-auto space-y-6">
+			<Skeleton className="h-32 w-full" />
+			<Skeleton className="h-48 w-full" />
+			<Skeleton className="h-48 w-full" />
+			<Skeleton className="h-48 w-full" />
+		</div>
+	);
 }
 
 function ProcessingState() {
-  return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-          <p className="text-lg text-muted-foreground">
-            Processing your exam paper...
-          </p>
-          <p className="text-sm text-muted-foreground">
-            This may take a moment. Please wait.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+	return (
+		<div className="p-8 max-w-4xl mx-auto">
+			<Card>
+				<CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
+					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+					<p className="text-lg text-muted-foreground">
+						Processing your exam paper...
+					</p>
+					<p className="text-sm text-muted-foreground">
+						This may take a moment. Please wait.
+					</p>
+				</CardContent>
+			</Card>
+		</div>
+	);
 }
 
 function ErrorState({ message }: { message: string }) {
-  return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
-          <div className="text-4xl">Error</div>
-          <p className="text-lg text-destructive">Failed to process exam</p>
-          <p className="text-sm text-muted-foreground">{message}</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+	return (
+		<div className="p-8 max-w-4xl mx-auto">
+			<Card>
+				<CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
+					<div className="text-4xl">Error</div>
+					<p className="text-lg text-destructive">Failed to process exam</p>
+					<p className="text-sm text-muted-foreground">{message}</p>
+				</CardContent>
+			</Card>
+		</div>
+	);
 }
 
 interface SectionGroupData {
-  sectionName: string | null;
-  sectionInstructions: string | null;
-  questions: Question[];
+	sectionName: string | null;
+	sectionInstructions: string | null;
+	questions: Question[];
 }
 
 function groupQuestionsBySection(
-  sectionsData: Section[],
-  questionsData: Question[]
+	sectionsData: Section[],
+	questionsData: Question[]
 ): SectionGroupData[] {
-  // Build a map of sectionId -> Section
-  const sectionMap = new Map<string, Section>();
-  for (const section of sectionsData) {
-    sectionMap.set(section.id, section);
-  }
+	// Build a map of sectionId -> Section
+	const sectionMap = new Map<string, Section>();
+	for (const section of sectionsData) {
+		sectionMap.set(section.id, section);
+	}
 
-  // Group questions by sectionId
-  const questionsBySectionId = new Map<string | null, Question[]>();
-  for (const question of questionsData) {
-    const key = question.sectionId;
-    const existing = questionsBySectionId.get(key) || [];
-    existing.push(question);
-    questionsBySectionId.set(key, existing);
-  }
+	// Group questions by sectionId
+	const questionsBySectionId = new Map<string | null, Question[]>();
+	for (const question of questionsData) {
+		const key = question.sectionId;
+		const existing = questionsBySectionId.get(key) || [];
+		existing.push(question);
+		questionsBySectionId.set(key, existing);
+	}
 
-  const groups: SectionGroupData[] = [];
+	const groups: SectionGroupData[] = [];
 
-  // Add sections in order with their questions
-  for (const section of sectionsData) {
-    const sectionQuestions = questionsBySectionId.get(section.id) || [];
-    if (sectionQuestions.length > 0) {
-      groups.push({
-        sectionName: section.sectionName || null,
-        sectionInstructions: section.instructions,
-        questions: sectionQuestions,
-      });
-    }
-  }
+	// Add sections in order with their questions
+	for (const section of sectionsData) {
+		const sectionQuestions = questionsBySectionId.get(section.id) || [];
+		if (sectionQuestions.length > 0) {
+			groups.push({
+				sectionName: section.sectionName || null,
+				sectionInstructions: section.instructions,
+				questions: sectionQuestions,
+			});
+		}
+	}
 
-  // Add questions without a section (sectionId is null)
-  const unsectionedQuestions = questionsBySectionId.get(null) || [];
-  if (unsectionedQuestions.length > 0) {
-    groups.push({
-      sectionName: null,
-      sectionInstructions: null,
-      questions: unsectionedQuestions,
-    });
-  }
+	// Add questions without a section (sectionId is null)
+	const unsectionedQuestions = questionsBySectionId.get(null) || [];
+	if (unsectionedQuestions.length > 0) {
+		groups.push({
+			sectionName: null,
+			sectionInstructions: null,
+			questions: unsectionedQuestions,
+		});
+	}
 
-  return groups;
+	return groups;
 }
 
 export default function ExamPage({
-  params,
+	params,
 }: {
-  params: Promise<{ id: string }>;
+	params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params);
-  const router = useRouter();
-  const { data: session, isPending: isSessionLoading } = useSession();
-  const { data: exam, isLoading, error } = useExam(id);
-  const [viewMode, setViewMode] = useState<ViewMode>("structured");
-  const [selectedQuestionForChat, setSelectedQuestionForChat] = useState<string | null>(null);
-  const [isChatPanelOpen, setIsChatPanelOpen] = useState(false);
+	const { id } = use(params);
+	const router = useRouter();
+	const { data: session, isPending: isSessionLoading } = useSession();
+	const { data: exam, isLoading, error } = useExam(id);
+	const [viewMode, setViewMode] = useState<ViewMode>("structured");
+	const [selectedQuestionForChat, setSelectedQuestionForChat] = useState<
+		string | null
+	>(null);
+	const [isChatPanelOpen, setIsChatPanelOpen] = useState(false);
 
-  // Handle "Ask AI" button click - opens panel and selects question
-  const handleAskAI = (questionNumber: string) => {
-    setSelectedQuestionForChat(questionNumber);
-    setIsChatPanelOpen(true);
-  };
+	// Handle "Ask AI" button click - opens panel and selects question
+	const handleAskAI = (questionNumber: string) => {
+		setSelectedQuestionForChat(questionNumber);
+		setIsChatPanelOpen(true);
+	};
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isSessionLoading && !session) {
-      router.push("/login");
-    }
-  }, [session, isSessionLoading, router]);
+	// Redirect to login if not authenticated
+	useEffect(() => {
+		if (!isSessionLoading && !session) {
+			router.push("/login");
+		}
+	}, [session, isSessionLoading, router]);
 
-  if (isSessionLoading || isLoading) {
-    return <ExamSkeleton />;
-  }
+	if (isSessionLoading || isLoading) {
+		return <ExamSkeleton />;
+	}
 
-  if (error) {
-    return (
-      <div className="p-8 max-w-4xl mx-auto">
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-destructive">Failed to load exam</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              {error.message}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+	if (error) {
+		return (
+			<div className="p-8 max-w-4xl mx-auto">
+				<Card>
+					<CardContent className="py-8 text-center">
+						<p className="text-destructive">Failed to load exam</p>
+						<p className="text-sm text-muted-foreground mt-2">
+							{error.message}
+						</p>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
 
-  if (!exam) {
-    return (
-      <div className="p-8 max-w-4xl mx-auto">
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">Exam not found</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+	if (!exam) {
+		return (
+			<div className="p-8 max-w-4xl mx-auto">
+				<Card>
+					<CardContent className="py-8 text-center">
+						<p className="text-muted-foreground">Exam not found</p>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
 
-  if (exam.status === "processing" || exam.status === "pending") {
-    return <ProcessingState />;
-  }
+	if (exam.status === "processing" || exam.status === "pending") {
+		return <ProcessingState />;
+	}
 
-  if (exam.status === "failed") {
-    return <ErrorState message={exam.errorMessage || "Unknown error"} />;
-  }
+	if (exam.status === "failed") {
+		return <ErrorState message={exam.errorMessage || "Unknown error"} />;
+	}
 
-  const hasDocumentMarkdown = Boolean(exam.documentMarkdown);
+	const hasDocumentMarkdown = Boolean(exam.documentMarkdown);
 
-  return (
-    <div className="fixed inset-0 left-64 flex flex-col overflow-hidden bg-background p-8">
-      <ExamHeader exam={exam} />
+	return (
+		<div className="fixed inset-0 left-64 flex flex-col overflow-hidden bg-background">
+			<div className="w-full max-w-7xl mx-auto p-8 flex flex-col flex-1 min-h-0">
+				<ExamHeader exam={exam} />
 
-      {hasDocumentMarkdown && (
-        <div className="flex items-center gap-3 mt-6 mb-4 shrink-0">
-          <span className="text-sm text-muted-foreground">View:</span>
-          <ExamViewToggle view={viewMode} onViewChange={setViewMode} />
-        </div>
-      )}
+				{hasDocumentMarkdown && (
+					<div className="flex items-center gap-3 mt-6 mb-4 shrink-0">
+						<span className="text-sm text-muted-foreground">View:</span>
+						<ExamViewToggle view={viewMode} onViewChange={setViewMode} />
+					</div>
+				)}
 
-      {viewMode === "document" && hasDocumentMarkdown ? (
-        <div className="flex-1 min-h-0">
-          <DocumentView
-            examId={id}
-            markdown={exam.documentMarkdown!}
-            questions={exam.questions}
-          />
-        </div>
-      ) : (
-        <div className={cn("flex flex-1 gap-4 min-h-0", !hasDocumentMarkdown && "mt-6")}>
-          {/* Main content - Questions */}
-          <div
-            className={cn(
-              "overflow-y-auto rounded-lg transition-all duration-300",
-              isChatPanelOpen ? "flex-[0_0_65%]" : "flex-1"
-            )}
-          >
-            {/* Exam-level images (not linked to specific questions) */}
-            {exam.examImages && exam.examImages.length > 0 && (
-              <Card className="mb-8">
-                <CardHeader>
-                  <CardTitle className="text-lg">Exam Reference Materials</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-4 flex-wrap">
-                    {exam.examImages.map((img) => (
-                      <QuestionImage key={img.id} image={img} />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+				{viewMode === "document" && hasDocumentMarkdown ? (
+					<div className="flex-1 min-h-0">
+						<DocumentView
+							examId={id}
+							markdown={exam.documentMarkdown!}
+							questions={exam.questions}
+						/>
+					</div>
+				) : (
+					<div
+						className={cn(
+							"flex flex-1 gap-4 min-h-0",
+							!hasDocumentMarkdown && "mt-6"
+						)}
+					>
+						{/* Main content - Questions */}
+						<div
+							className={cn(
+								"overflow-y-auto rounded-lg transition-all duration-300",
+								isChatPanelOpen ? "flex-[0_0_65%]" : "flex-1"
+							)}
+						>
+							{/* Exam-level images (not linked to specific questions) */}
+							{exam.examImages && exam.examImages.length > 0 && (
+								<Card className="mb-8">
+									<CardHeader>
+										<CardTitle className="text-lg">
+											Exam Reference Materials
+										</CardTitle>
+									</CardHeader>
+									<CardContent>
+										<div className="flex gap-4 flex-wrap">
+											{exam.examImages.map((img) => (
+												<QuestionImage key={img.id} image={img} />
+											))}
+										</div>
+									</CardContent>
+								</Card>
+							)}
 
-            <div className="space-y-8">
-              {groupQuestionsBySection(exam.sections, exam.questions).map((group, index) => (
-                <SectionGroup
-                  key={`section-${index}`}
-                  sectionName={group.sectionName}
-                  sectionInstructions={group.sectionInstructions}
-                  questions={group.questions}
-                  onAskAI={handleAskAI}
-                />
-              ))}
-            </div>
+							<div className="space-y-8">
+								{groupQuestionsBySection(exam.sections, exam.questions).map(
+									(group, index) => (
+										<SectionGroup
+											key={`section-${index}`}
+											sectionName={group.sectionName}
+											sectionInstructions={group.sectionInstructions}
+											questions={group.questions}
+											onAskAI={handleAskAI}
+										/>
+									)
+								)}
+							</div>
 
-            {exam.questions.length === 0 && (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">
-                    No questions found in this exam.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+							{exam.questions.length === 0 && (
+								<Card>
+									<CardContent className="py-8 text-center">
+										<p className="text-muted-foreground">
+											No questions found in this exam.
+										</p>
+									</CardContent>
+								</Card>
+							)}
+						</div>
 
-          {/* Side Panel - Ask AI (only visible when open) */}
-          {isChatPanelOpen && (
-            <div
-              className="rounded-lg border bg-card overflow-hidden flex-[0_0_35%]"
-            >
-              {selectedQuestionForChat && exam.questions.find(q => q.questionNumber === selectedQuestionForChat) ? (
-                <AIChatPanel
-                  examId={id}
-                  question={exam.questions.find(q => q.questionNumber === selectedQuestionForChat)!}
-                  questions={exam.questions}
-                  onQuestionChange={setSelectedQuestionForChat}
-                  onClose={() => setIsChatPanelOpen(false)}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-4">
-                  Select a question to start chatting
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+						{/* Side Panel - Ask AI (only visible when open) */}
+						{isChatPanelOpen && (
+							<div className="rounded-lg border bg-card overflow-hidden flex-[0_0_35%]">
+								{selectedQuestionForChat &&
+								exam.questions.find(
+									(q) => q.questionNumber === selectedQuestionForChat
+								) ? (
+									<AIChatPanel
+										examId={id}
+										question={
+											exam.questions.find(
+												(q) => q.questionNumber === selectedQuestionForChat
+											)!
+										}
+										questions={exam.questions}
+										onQuestionChange={setSelectedQuestionForChat}
+										onClose={() => setIsChatPanelOpen(false)}
+									/>
+								) : (
+									<div className="flex items-center justify-center h-full text-muted-foreground text-sm p-4">
+										Select a question to start chatting
+									</div>
+								)}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
 }

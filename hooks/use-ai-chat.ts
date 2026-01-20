@@ -22,7 +22,8 @@ export function useAIChat({
 }: UseAIChatOptions) {
 	const [selectedModel, setSelectedModel] = useState<AIModel>("kimi-k2");
 	const [input, setInput] = useState("");
-	const hasLoadedInitialMessages = useRef(false);
+	// Track which question we've loaded messages for
+	const loadedForQuestion = useRef<string | null>(null);
 
 	// Use a unique chat ID per question to separate conversations
 	const chatId = `${examId}-${questionNumber}`;
@@ -56,33 +57,42 @@ export function useAIChat({
 		transport,
 	});
 
-	// Load persisted messages when history data arrives
+	// Clear messages when question changes
 	useEffect(() => {
-		if (
-			historyData?.messages &&
-			historyData.messages.length > 0 &&
-			!hasLoadedInitialMessages.current
-		) {
+		// Only clear if we're switching to a different question
+		if (loadedForQuestion.current !== null && loadedForQuestion.current !== questionNumber) {
+			setMessages([]);
+		}
+		loadedForQuestion.current = null;
+	}, [questionNumber, setMessages]);
+
+	// Load persisted messages when history data arrives for current question
+	useEffect(() => {
+		// Only load if we haven't loaded for this question yet
+		if (loadedForQuestion.current === questionNumber) {
+			return;
+		}
+
+		// Wait for loading to complete
+		if (isLoadingHistory) {
+			return;
+		}
+
+		// Mark as loaded for this question (even if no messages)
+		loadedForQuestion.current = questionNumber;
+
+		if (historyData?.messages && historyData.messages.length > 0) {
 			// Convert persisted messages to AI SDK format
-			const initialMessages: UIMessage[] = historyData.messages.map((msg) => ({
+			const initialMessages = historyData.messages.map((msg) => ({
 				id: msg.id,
-				role: msg.role,
+				role: msg.role as "user" | "assistant",
 				content: msg.content,
 				createdAt: new Date(msg.createdAt),
 				parts: [{ type: "text" as const, text: msg.content }],
-			}));
+			})) satisfies UIMessage[];
 			setMessages(initialMessages);
-			hasLoadedInitialMessages.current = true;
 		}
-	}, [historyData, setMessages]);
-
-	// Reset the loaded flag when question changes
-	useEffect(() => {
-		hasLoadedInitialMessages.current = false;
-		setMessages([]);
-		const t = setTimeout(() => setInput(""), 0);
-		return () => clearTimeout(t);
-	}, [questionNumber, setMessages]);
+	}, [historyData, isLoadingHistory, questionNumber, setMessages]);
 
 	// Determine loading state from status
 	const isLoading = status === "submitted" || status === "streaming";
@@ -104,7 +114,8 @@ export function useAIChat({
 		stop();
 		setMessages([]);
 		setInput("");
-		hasLoadedInitialMessages.current = false;
+		// Reset so we can re-load if user clears and new messages come in
+		loadedForQuestion.current = null;
 
 		try {
 			await clearChatMutation.mutateAsync({ examId, questionNumber });
