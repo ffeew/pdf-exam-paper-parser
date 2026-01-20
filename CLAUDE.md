@@ -113,14 +113,14 @@ hooks/                # React Query hooks
 
 ## Commands
 
-- `bun run dev` - Start development server
-- `bun run build` - Build for production
-- `bun run lint` - Run ESLint
-- `bun run typecheck` - Run TypeScript type checking
-- `bun run db:push` - Push schema changes to database
-- `bun run db:studio` - Open Drizzle Studio
-- `bun run db:generate` - Generate migrations
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run lint` - Run ESLint
+- `npm run typecheck` - Run TypeScript type checking
+- `npm run db:push` - Push schema changes to database
+- `npm run db:studio` - Open Drizzle Studio
+- `npm run db:generate` - Generate migrations
 
 ## Development Workflow
 
-**Always run `bun run typecheck` after completing edits** to ensure there are no type errors.
+**Always run `npm run typecheck` after completing edits** to ensure there are no type errors.
