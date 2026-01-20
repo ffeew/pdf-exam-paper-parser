@@ -48,7 +48,7 @@ const UIMessagePartSchema = z.discriminatedUnion("type", [
 const UIMessageSchema = z.object({
 	id: z.string().min(1),
 	role: z.enum(["user", "assistant", "system"]),
-	content: z.string(),
+	content: z.string().optional().default(""),
 	parts: z.array(UIMessagePartSchema),
 	createdAt: z.coerce.date().optional(),
 });
