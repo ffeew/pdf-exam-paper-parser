@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LatexText } from "@/components/ui/latex-text";
 import { McqQuestion } from "./mcq-question";
 import { FillBlankQuestion } from "./fill-blank-question";
 import { ShortAnswerQuestion } from "./short-answer-question";
@@ -32,9 +33,10 @@ export function QuestionCard({ question }: QuestionCardProps) {
           </p>
         )}
         {question.instructions && (
-          <p className="text-sm text-muted-foreground italic mt-1">
-            {question.instructions}
-          </p>
+          <LatexText
+            text={question.instructions}
+            className="text-sm text-muted-foreground italic mt-1 block"
+          />
         )}
       </CardHeader>
 
@@ -49,9 +51,10 @@ export function QuestionCard({ question }: QuestionCardProps) {
         )}
 
         {/* Question text */}
-        <p className="text-base leading-relaxed whitespace-pre-wrap">
-          {question.questionText}
-        </p>
+        <LatexText
+          text={question.questionText}
+          className="text-base leading-relaxed block"
+        />
 
         {/* Answer input based on type */}
         <div className="pt-2">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { LatexText } from "@/components/ui/latex-text";
 
 interface McqQuestionProps {
   questionId: string;
@@ -33,7 +34,7 @@ export function McqQuestion({ questionId, options }: McqQuestionProps) {
             className="flex-1 cursor-pointer font-normal leading-relaxed"
           >
             <span className="font-semibold mr-2">{option.optionLabel}.</span>
-            {option.optionText}
+            <LatexText text={option.optionText} preserveWhitespace={false} />
           </Label>
         </div>
       ))}
