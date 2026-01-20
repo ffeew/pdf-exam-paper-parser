@@ -24,7 +24,7 @@ const SectionSchema = z.object({
   context: z
     .string()
     .nullable()
-    .describe("Reference content for answering questions in this section: comprehension passages, reading material, word banks, cloze text. Include the COMPLETE text word-for-word, not summarized."),
+    .describe("Reference content required for answering questions in this section. CRITICAL: Include word banks/option boxes formatted as '(A) word1 (B) word2...'. Also include complete comprehension passages, cloze text with blanks, reading material. Include COMPLETE text word-for-word."),
   questionNumbers: z
     .array(z.string())
     .describe("List of question numbers belonging to this section (e.g., ['1', '2', '3'] or ['5a', '5b', '5c'])"),
@@ -98,10 +98,11 @@ CRITICAL RULES:
    - Section formats: Chinese "一、辨字测验", English "Section A", "Part 1"
    - instructions: HOW to answer - directions, format requirements (e.g., "Choose the correct answer", "Fill in the blanks with words from the box")
    - context: Reference content NEEDED to answer questions in this section:
+     * WORD BANKS - CRITICAL: Always capture word/phrase options in boxes/tables, formatted as:
+       "(A) word1  (B) word2  (C) word3" etc. These are essential for students to answer!
      * Comprehension passages (include COMPLETE text word-for-word, not summarized)
-     * Word banks
+     * Cloze text with blanks (the passage students fill in)
      * Reading material
-     * Cloze text with blanks
      * Reference tables or charts (as text)
      * Vocabulary-in-context sentences with highlighted words
    - questionNumbers: List ALL question numbers that belong to this section (e.g., ["1", "2", "3"] or ["5a", "5b", "5c"])
