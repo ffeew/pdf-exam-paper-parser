@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 
-type UploadStage = "idle" | "uploading" | "processing";
+type UploadStage = "idle" | "uploading" | "processing" | "duplicate";
 
 function getStatusMessage(status: string): string {
 	switch (status) {
@@ -34,9 +34,27 @@ function getStatusMessage(status: string): string {
 	}
 }
 
+function getUploadStageMessage(stage: string): string {
+	switch (stage) {
+		case "hashing":
+			return "Computing file hash...";
+		case "checking":
+			return "Checking for duplicates...";
+		case "presign":
+			return "Preparing upload...";
+		case "upload":
+			return "Uploading file...";
+		case "confirm":
+			return "Finalizing...";
+		default:
+			return "Processing...";
+	}
+}
+
 export default function UploadPage() {
 	const [file, setFile] = useState<File | null>(null);
 	const [uploadProgress, setUploadProgress] = useState(0);
+	const [uploadStageText, setUploadStageText] = useState("");
 	const [stage, setStage] = useState<UploadStage>("idle");
 	const [examId, setExamId] = useState<string | null>(null);
 	const router = useRouter();
@@ -49,6 +67,13 @@ export default function UploadPage() {
 	} = useUploadExam({
 		onProgress: (progress) => {
 			setUploadProgress(progress.progress);
+			setUploadStageText(getUploadStageMessage(progress.stage));
+		},
+		onDuplicate: (existingExam) => {
+			if (existingExam) {
+				setExamId(existingExam.examId);
+				setStage("duplicate");
+			}
 		},
 	});
 
@@ -89,11 +114,17 @@ export default function UploadPage() {
 
 		setStage("uploading");
 		setUploadProgress(0);
+		setUploadStageText("");
 
 		uploadExam(file, {
 			onSuccess: (result) => {
-				setExamId(result.examId);
-				setStage("processing");
+				if (result.isDuplicate) {
+					setExamId(result.examId);
+					setStage("duplicate");
+				} else {
+					setExamId(result.examId);
+					setStage("processing");
+				}
 			},
 			onError: () => {
 				setStage("idle");
@@ -111,6 +142,7 @@ export default function UploadPage() {
 
 	const isProcessing = stage === "processing";
 	const isUploadingStage = stage === "uploading" || isUploading;
+	const isDuplicate = stage === "duplicate";
 
 	return (
 		<div className="p-8 max-w-xl mx-auto">
@@ -145,8 +177,24 @@ export default function UploadPage() {
 						<div className="space-y-2">
 							<Progress value={uploadProgress} />
 							<p className="text-sm text-center text-muted-foreground">
-								Uploading... {uploadProgress}%
+								{uploadStageText || "Uploading..."} {uploadProgress}%
 							</p>
+						</div>
+					)}
+
+					{/* Duplicate Detected */}
+					{isDuplicate && examId && (
+						<div className="p-4 bg-amber-50 border border-amber-200 rounded-md space-y-3">
+							<p className="text-sm font-medium text-amber-800">
+								This file has already been uploaded.
+							</p>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => router.push(`/exams/${examId}`)}
+							>
+								View Existing Exam
+							</Button>
 						</div>
 					)}
 
@@ -175,7 +223,7 @@ export default function UploadPage() {
 					{/* Upload Button */}
 					<Button
 						onClick={handleUpload}
-						disabled={!file || isUploadingStage || isProcessing}
+						disabled={!file || isUploadingStage || isProcessing || isDuplicate}
 						className="w-full"
 						size="lg"
 					>
@@ -183,6 +231,8 @@ export default function UploadPage() {
 							? "Uploading..."
 							: isProcessing
 							? "Processing..."
+							: isDuplicate
+							? "Duplicate Detected"
 							: "Upload & Parse"}
 					</Button>
 

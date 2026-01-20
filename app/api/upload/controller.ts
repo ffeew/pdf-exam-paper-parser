@@ -5,8 +5,13 @@ import { headers } from "next/headers";
 import {
   GetUploadUrlRequestSchema,
   ConfirmUploadRequestSchema,
+  CheckHashRequestSchema,
 } from "./validator";
-import { generatePresignedUploadUrl, confirmUploadAndCreateExam } from "./service";
+import {
+  generatePresignedUploadUrl,
+  confirmUploadAndCreateExam,
+  checkFileHashExists,
+} from "./service";
 
 export async function handleGetUploadUrl(request: NextRequest) {
   try {
@@ -31,6 +36,35 @@ export async function handleGetUploadUrl(request: NextRequest) {
       );
     }
     console.error("Error generating upload URL:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function handleCheckHash(request: NextRequest) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const validated = CheckHashRequestSchema.parse(body);
+    const result = await checkFileHashExists(validated.fileHash, session.user.id);
+
+    return NextResponse.json(result);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Validation error", details: error.issues },
+        { status: 400 }
+      );
+    }
+    console.error("Error checking hash:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

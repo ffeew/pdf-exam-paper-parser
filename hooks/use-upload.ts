@@ -1,21 +1,60 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import type { ConfirmUploadResponse } from "@/app/api/upload/validator";
+import { computeFileHash } from "@/lib/utils/file-hash";
+import type {
+  ConfirmUploadResponse,
+  CheckHashResponse,
+} from "@/app/api/upload/validator";
 
 interface UploadProgress {
-  stage: "presign" | "upload" | "confirm";
+  stage: "hashing" | "checking" | "presign" | "upload" | "confirm";
   progress: number;
+}
+
+interface UploadResult extends ConfirmUploadResponse {
+  isDuplicate?: boolean;
 }
 
 export function useUploadExam(options?: {
   onProgress?: (progress: UploadProgress) => void;
+  onDuplicate?: (existingExam: CheckHashResponse["existingExam"]) => void;
 }) {
   return useMutation({
-    mutationFn: async (file: File): Promise<ConfirmUploadResponse> => {
-      options?.onProgress?.({ stage: "presign", progress: 0 });
+    mutationFn: async (file: File): Promise<UploadResult> => {
+      // Step 0: Compute file hash
+      options?.onProgress?.({ stage: "hashing", progress: 0 });
+      const fileHash = await computeFileHash(file);
+      options?.onProgress?.({ stage: "checking", progress: 10 });
 
-      // Step 1: Get presigned URL
+      // Step 1: Check if hash already exists
+      const checkResponse = await fetch("/api/upload?action=checkHash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileHash }),
+      });
+
+      if (!checkResponse.ok) {
+        const error = await checkResponse.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to check for duplicates");
+      }
+
+      const checkResult: CheckHashResponse = await checkResponse.json();
+
+      if (checkResult.isDuplicate && checkResult.existingExam) {
+        // Notify about duplicate and return existing exam info
+        options?.onDuplicate?.(checkResult.existingExam);
+        return {
+          examId: checkResult.existingExam.examId,
+          status: checkResult.existingExam.status as "pending" | "processing",
+          message: "This file was already uploaded.",
+          isDuplicate: true,
+        };
+      }
+
+      options?.onProgress?.({ stage: "presign", progress: 20 });
+
+      // Step 2: Get presigned URL
       const presignResponse = await fetch("/api/upload?action=presign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -32,9 +71,9 @@ export function useUploadExam(options?: {
       }
 
       const { uploadUrl, fileKey } = await presignResponse.json();
-      options?.onProgress?.({ stage: "upload", progress: 33 });
+      options?.onProgress?.({ stage: "upload", progress: 40 });
 
-      // Step 2: Upload to R2
+      // Step 3: Upload to R2
       const uploadResponse = await fetch(uploadUrl, {
         method: "PUT",
         body: file,
@@ -45,13 +84,13 @@ export function useUploadExam(options?: {
         throw new Error("Failed to upload file to storage");
       }
 
-      options?.onProgress?.({ stage: "confirm", progress: 66 });
+      options?.onProgress?.({ stage: "confirm", progress: 80 });
 
-      // Step 3: Confirm upload and start processing
+      // Step 4: Confirm upload with hash
       const confirmResponse = await fetch("/api/upload?action=confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileKey, filename: file.name }),
+        body: JSON.stringify({ fileKey, filename: file.name, fileHash }),
       });
 
       if (!confirmResponse.ok) {

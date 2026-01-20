@@ -13,6 +13,7 @@ export const exams = sqliteTable("exams", {
     .references(() => user.id, { onDelete: "cascade" }),
   filename: text("filename").notNull(),
   pdfKey: text("pdf_key"), // R2 storage key for the uploaded PDF
+  fileHash: text("file_hash"), // SHA-256 hash for duplicate detection
   subject: text("subject"),
   grade: text("grade"),
   schoolName: text("school_name"),

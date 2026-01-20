@@ -37,7 +37,7 @@ Full-stack application for parsing PDF exam papers into interactive web-based ex
 
 ## Sample Input
 
-- P4 Math, Chinese, English exam papers from Singapore schools
+- Math, Chinese, English exam papers from Singapore schools
 - PDFs contain mixed content: text, images, tables, diagrams
 
 ## Tech Stack
