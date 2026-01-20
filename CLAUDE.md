@@ -123,4 +123,4 @@ hooks/                # React Query hooks
 
 ## Development Workflow
 
-**Always run `npm run typecheck` after completing edits** to ensure there are no type errors.
+**Always run `npm run lint` and `npm run typecheck` after completing edits** to ensure there are no lint or type errors.

@@ -16,9 +16,19 @@ interface AIChatPanelProps {
 	questions: Question[];
 	onQuestionChange: (questionNumber: string) => void;
 	onClose?: () => void;
+	sectionName: string | null;
+	sectionInstructions: string | null;
 }
 
-export function AIChatPanel({ examId, question, questions, onQuestionChange, onClose }: AIChatPanelProps) {
+export function AIChatPanel({
+	examId,
+	question,
+	questions,
+	onQuestionChange,
+	onClose,
+	sectionName,
+	sectionInstructions,
+}: AIChatPanelProps) {
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
 	const questionContext = {
@@ -32,6 +42,8 @@ export function AIChatPanel({ examId, question, questions, onQuestionChange, onC
 				optionText: o.optionText,
 			})) ?? null,
 		context: question.context,
+		sectionName,
+		sectionInstructions,
 	};
 
 	const {
@@ -55,7 +67,8 @@ export function AIChatPanel({ examId, question, questions, onQuestionChange, onC
 	// Auto-scroll to bottom when new messages arrive (only if there are messages)
 	useEffect(() => {
 		if (messages.length > 0 && scrollContainerRef.current) {
-			scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+			scrollContainerRef.current.scrollTop =
+				scrollContainerRef.current.scrollHeight;
 		}
 	}, [messages]);
 
@@ -75,7 +88,9 @@ export function AIChatPanel({ examId, question, questions, onQuestionChange, onC
 		<div className="flex flex-col h-full overflow-hidden">
 			{/* Header with model selector */}
 			<div className="flex items-center justify-between px-4 py-2 border-b shrink-0">
-				<span className="text-sm font-medium">Ask AI - Q{question.questionNumber}</span>
+				<span className="text-sm font-medium">
+					Ask AI - Q{question.questionNumber}
+				</span>
 				<div className="flex items-center gap-2">
 					{messages.length > 0 && (
 						<Button
@@ -126,7 +141,10 @@ export function AIChatPanel({ examId, question, questions, onQuestionChange, onC
 			</div>
 
 			{/* Messages area */}
-			<div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4">
+			<div
+				ref={scrollContainerRef}
+				className="flex-1 min-h-0 overflow-y-auto p-4"
+			>
 				{isLoadingHistory ? (
 					<div className="flex items-center justify-center py-8">
 						<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -134,9 +152,7 @@ export function AIChatPanel({ examId, question, questions, onQuestionChange, onC
 				) : messages.length === 0 ? (
 					<div className="text-center text-muted-foreground text-sm py-8">
 						<p>Ask me anything about this question!</p>
-						<p className="mt-1 text-xs">
-							I will help guide you to the answer.
-						</p>
+						<p className="mt-1 text-xs">I will help guide you to the answer.</p>
 					</div>
 				) : (
 					<div className="space-y-3">
@@ -170,7 +186,7 @@ export function AIChatPanel({ examId, question, questions, onQuestionChange, onC
 						placeholder="Ask about this question..."
 						disabled={isLoading}
 						rows={1}
-						className="resize-none min-h-[40px] max-h-[120px]"
+						className="resize-none min-h-10 max-h-30"
 					/>
 					<Button
 						type="submit"

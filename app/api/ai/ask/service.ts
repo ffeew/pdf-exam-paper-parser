@@ -31,8 +31,16 @@ const TUTOR_SYSTEM_PROMPT = `You are a helpful and patient tutor assisting a stu
 Remember: Your goal is to help the student LEARN, not just get the right answer.`;
 
 function buildContextPrompt(context: QuestionContext): string {
-	let prompt = `\n\nCurrent Question Context:
-- Question Number: ${context.questionNumber}
+	let prompt = `\n\nCurrent Question Context:`;
+
+	if (context.sectionName) {
+		prompt += `\n- Section: ${context.sectionName}`;
+	}
+	if (context.sectionInstructions) {
+		prompt += `\n- Section Instructions: ${context.sectionInstructions}`;
+	}
+
+	prompt += `\n- Question Number: ${context.questionNumber}
 - Type: ${context.questionType}
 - Marks: ${context.marks ?? "Not specified"}
 - Question: ${context.questionText}`;

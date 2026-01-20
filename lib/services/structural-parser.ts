@@ -122,8 +122,7 @@ export function parseStructure(pages: OcrPage[]): StructuralResult {
   const questions = buildStructuralQuestions(
     documentLines,
     questionBoundaries,
-    imagePositions,
-    pages
+    imagePositions
   );
 
   return {
@@ -295,8 +294,7 @@ function extractMetadata(firstPageMarkdown: string): StructuralResult["metadata"
 function buildStructuralQuestions(
   lines: string[],
   boundaries: QuestionBoundary[],
-  imagePositions: ImagePosition[],
-  pages: OcrPage[]
+  imagePositions: ImagePosition[]
 ): StructuralQuestion[] {
   const questions: StructuralQuestion[] = [];
 

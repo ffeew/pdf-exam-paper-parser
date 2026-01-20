@@ -19,6 +19,8 @@ export const QuestionContextSchema = z.object({
 	marks: z.number().nullable(),
 	options: z.array(OptionContextSchema).nullable(),
 	context: z.string().nullable(),
+	sectionName: z.string().nullable(),
+	sectionInstructions: z.string().nullable(),
 });
 export type QuestionContext = z.infer<typeof QuestionContextSchema>;
 

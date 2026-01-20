@@ -200,6 +200,7 @@ export default function ExamPage({
 							examId={id}
 							markdown={exam.documentMarkdown!}
 							questions={exam.questions}
+							sections={exam.sections}
 						/>
 					</div>
 				) : (
@@ -260,30 +261,34 @@ export default function ExamPage({
 						</div>
 
 						{/* Side Panel - Ask AI (only visible when open) */}
-						{isChatPanelOpen && (
-							<div className="rounded-lg border bg-card overflow-hidden flex-[0_0_35%]">
-								{selectedQuestionForChat &&
-								exam.questions.find(
-									(q) => q.questionNumber === selectedQuestionForChat
-								) ? (
-									<AIChatPanel
-										examId={id}
-										question={
-											exam.questions.find(
-												(q) => q.questionNumber === selectedQuestionForChat
-											)!
-										}
-										questions={exam.questions}
-										onQuestionChange={setSelectedQuestionForChat}
-										onClose={() => setIsChatPanelOpen(false)}
-									/>
-								) : (
-									<div className="flex items-center justify-center h-full text-muted-foreground text-sm p-4">
-										Select a question to start chatting
-									</div>
-								)}
-							</div>
-						)}
+						{isChatPanelOpen && (() => {
+							const selectedQuestion = selectedQuestionForChat
+								? exam.questions.find((q) => q.questionNumber === selectedQuestionForChat)
+								: undefined;
+							const selectedSection = selectedQuestion?.sectionId
+								? exam.sections.find((s) => s.id === selectedQuestion.sectionId)
+								: undefined;
+
+							return (
+								<div className="rounded-lg border bg-card overflow-hidden flex-[0_0_35%]">
+									{selectedQuestion ? (
+										<AIChatPanel
+											examId={id}
+											question={selectedQuestion}
+											questions={exam.questions}
+											onQuestionChange={setSelectedQuestionForChat}
+											onClose={() => setIsChatPanelOpen(false)}
+											sectionName={selectedSection?.sectionName ?? null}
+											sectionInstructions={selectedSection?.instructions ?? null}
+										/>
+									) : (
+										<div className="flex items-center justify-center h-full text-muted-foreground text-sm p-4">
+											Select a question to start chatting
+										</div>
+									)}
+								</div>
+							);
+						})()}
 					</div>
 				)}
 			</div>

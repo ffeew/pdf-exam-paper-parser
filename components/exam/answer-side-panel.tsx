@@ -8,11 +8,12 @@ import { CompactAnswerInput } from "./compact-answer-input";
 import { AIChatPanel } from "./ai-chat-panel";
 import { cn } from "@/lib/utils";
 import { MessageCircle } from "lucide-react";
-import type { Question } from "@/app/api/exams/[id]/validator";
+import type { Question, Section } from "@/app/api/exams/[id]/validator";
 
 interface AnswerSidePanelProps {
 	examId: string;
 	questions: Question[];
+	sections: Section[];
 	activeQuestionNumber: string | null;
 	onQuestionClick: (questionNumber: string) => void;
 }
@@ -20,6 +21,7 @@ interface AnswerSidePanelProps {
 export function AnswerSidePanel({
 	examId,
 	questions,
+	sections,
 	activeQuestionNumber,
 	onQuestionClick,
 }: AnswerSidePanelProps) {
@@ -139,14 +141,21 @@ export function AnswerSidePanel({
 			</TabsContent>
 
 			<TabsContent value="chat" className="flex-1 min-h-0 overflow-hidden mt-0">
-				{selectedQuestion ? (
-					<AIChatPanel
-						examId={examId}
-						question={selectedQuestion}
-						questions={questions}
-						onQuestionChange={setSelectedQuestionForChat}
-					/>
-				) : (
+				{selectedQuestion ? (() => {
+					const selectedSection = selectedQuestion.sectionId
+						? sections.find((s) => s.id === selectedQuestion.sectionId)
+						: undefined;
+					return (
+						<AIChatPanel
+							examId={examId}
+							question={selectedQuestion}
+							questions={questions}
+							onQuestionChange={setSelectedQuestionForChat}
+							sectionName={selectedSection?.sectionName ?? null}
+							sectionInstructions={selectedSection?.instructions ?? null}
+						/>
+					);
+				})() : (
 					<div className="flex items-center justify-center h-full text-muted-foreground text-sm">
 						Select a question to start chatting
 					</div>

@@ -6,15 +6,16 @@ import remarkGfm from "remark-gfm";
 import { AnswerSidePanel } from "./answer-side-panel";
 import { LatexText } from "@/components/ui/latex-text";
 import { cn } from "@/lib/utils";
-import type { Question } from "@/app/api/exams/[id]/validator";
+import type { Question, Section } from "@/app/api/exams/[id]/validator";
 
 interface DocumentViewProps {
   examId: string;
   markdown: string;
   questions: Question[];
+  sections: Section[];
 }
 
-export function DocumentView({ examId, markdown, questions }: DocumentViewProps) {
+export function DocumentView({ examId, markdown, questions, sections }: DocumentViewProps) {
   const documentRef = useRef<HTMLDivElement>(null);
   const [activeQuestionNumber, setActiveQuestionNumber] = useState<string | null>(null);
   const questionRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -269,6 +270,7 @@ export function DocumentView({ examId, markdown, questions }: DocumentViewProps)
         <AnswerSidePanel
           examId={examId}
           questions={questions}
+          sections={sections}
           activeQuestionNumber={activeQuestionNumber}
           onQuestionClick={handleQuestionClick}
         />
