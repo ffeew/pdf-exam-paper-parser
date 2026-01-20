@@ -138,15 +138,15 @@ npm run dev      # Start development server
 
 ## API Endpoints
 
-| Endpoint                 | Method     | Description                              |
-| ------------------------ | ---------- | ---------------------------------------- |
-| `/api/upload`            | POST       | Upload PDF (presign, checkHash, confirm) |
-| `/api/exams/[id]`        | GET        | Get parsed exam with questions           |
-| `/api/answers`           | GET/POST   | Get or save user answers                 |
-| `/api/answers/grade`     | POST       | Grade a single answer with LLM           |
-| `/api/answers/grade-exam`| POST       | Grade all submitted answers for an exam  |
-| `/api/ai/ask`            | POST       | Ask AI about a specific question         |
-| `/api/ai/chat-history`   | GET/DELETE | Manage chat history                      |
+| Endpoint                  | Method     | Description                              |
+| ------------------------- | ---------- | ---------------------------------------- |
+| `/api/upload`             | POST       | Upload PDF (presign, checkHash, confirm) |
+| `/api/exams/[id]`         | GET        | Get parsed exam with questions           |
+| `/api/answers`            | GET/POST   | Get or save user answers                 |
+| `/api/answers/grade`      | POST       | Grade a single answer with LLM           |
+| `/api/answers/grade-exam` | POST       | Grade all submitted answers for an exam  |
+| `/api/ai/ask`             | POST       | Ask AI about a specific question         |
+| `/api/ai/chat-history`    | GET/DELETE | Manage chat history                      |
 
 ## Architecture
 
@@ -194,15 +194,3 @@ Checks both first 3 and last 4 pages of PDFs:
 
 - Answer keys appear at different locations across exam papers
 - Deduplication prevents redundant processing for short documents
-
-## Sample Input
-
-The application supports exam papers from Singapore schools including:
-
-- Mathematics papers with diagrams and equations
-- Chinese language papers with characters
-- English papers with comprehension passages
-
----
-
-Built with Next.js and AI-powered by Mistral OCR and Groq.
