@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ModelSelector } from "./model-selector";
 import { ChatMessage } from "./chat-message";
 import { useAIChat } from "@/hooks/use-ai-chat";
-import { Send, Loader2, X } from "lucide-react";
+import { Send, Loader2, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Question } from "@/app/api/exams/[id]/validator";
 
@@ -40,9 +40,12 @@ export function AIChatPanel({ examId, question, questions, onQuestionChange, onC
 		setInput,
 		handleSubmit,
 		isLoading,
+		isLoadingHistory,
 		error,
 		selectedModel,
 		setSelectedModel,
+		clearMessages,
+		isClearingChat,
 	} = useAIChat({
 		examId,
 		questionNumber: question.questionNumber,
@@ -74,6 +77,18 @@ export function AIChatPanel({ examId, question, questions, onQuestionChange, onC
 			<div className="flex items-center justify-between px-4 py-2 border-b shrink-0">
 				<span className="text-sm font-medium">Ask AI - Q{question.questionNumber}</span>
 				<div className="flex items-center gap-2">
+					{messages.length > 0 && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-7 w-7"
+							onClick={clearMessages}
+							disabled={isClearingChat || isLoading}
+							title="Clear chat history"
+						>
+							<Trash2 className="h-4 w-4" />
+						</Button>
+					)}
 					<ModelSelector
 						value={selectedModel}
 						onChange={setSelectedModel}
@@ -112,7 +127,11 @@ export function AIChatPanel({ examId, question, questions, onQuestionChange, onC
 
 			{/* Messages area */}
 			<div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4">
-				{messages.length === 0 ? (
+				{isLoadingHistory ? (
+					<div className="flex items-center justify-center py-8">
+						<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+					</div>
+				) : messages.length === 0 ? (
 					<div className="text-center text-muted-foreground text-sm py-8">
 						<p>Ask me anything about this question!</p>
 						<p className="mt-1 text-xs">
