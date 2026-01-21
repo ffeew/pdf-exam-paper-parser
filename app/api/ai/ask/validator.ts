@@ -24,34 +24,38 @@ export const QuestionContextSchema = z.object({
 });
 export type QuestionContext = z.infer<typeof QuestionContextSchema>;
 
-// UIMessage part schemas - matches AI SDK's message part types
-const TextPartSchema = z.object({
-	type: z.literal("text"),
-	text: z.string(),
-});
-
-const ToolInvocationPartSchema = z.object({
-	type: z.literal("tool-invocation"),
-	toolInvocationId: z.string(),
-	toolName: z.string(),
-	args: z.unknown(),
-	state: z.enum(["partial-call", "call", "result"]),
-	result: z.unknown().optional(),
-});
-
-const UIMessagePartSchema = z.discriminatedUnion("type", [
-	TextPartSchema,
-	ToolInvocationPartSchema,
-]);
-
 // UIMessage schema - validates structure of AI SDK messages
+// Accept parts as passthrough to handle any AI SDK part types
 const UIMessageSchema = z.object({
 	id: z.string().min(1),
 	role: z.enum(["user", "assistant", "system"]),
 	content: z.string().optional().default(""),
-	parts: z.array(UIMessagePartSchema),
+	parts: z.array(z.unknown()).optional(),
 	createdAt: z.coerce.date().optional(),
 });
+
+// Normalize messages to ensure all have text parts (required by convertToModelMessages)
+function normalizeMessages(msgs: z.infer<typeof UIMessageSchema>[]): UIMessage[] {
+	return msgs.map((msg) => {
+		// Check if parts has any text content
+		const existingParts = msg.parts as Array<{ type?: string; text?: string }> | undefined;
+		const hasTextPart = existingParts?.some(
+			(p) => p.type === "text" && typeof p.text === "string" && p.text.length > 0
+		);
+
+		// If parts exists with text content, use it; otherwise create from content
+		const parts = hasTextPart
+			? (existingParts as UIMessage["parts"])
+			: [{ type: "text" as const, text: msg.content || "" }];
+
+		return {
+			id: msg.id,
+			role: msg.role,
+			createdAt: msg.createdAt,
+			parts,
+		};
+	});
+}
 
 // Request schema - uses AI SDK UIMessage format with proper validation
 export const AskRequestSchema = z.object({
@@ -61,7 +65,7 @@ export const AskRequestSchema = z.object({
 		.array(UIMessageSchema)
 		.min(1)
 		.max(21)
-		.transform((msgs) => msgs as UIMessage[]),
+		.transform(normalizeMessages),
 	model: AIModelSchema.default("kimi-k2"),
 	questionContext: QuestionContextSchema,
 });

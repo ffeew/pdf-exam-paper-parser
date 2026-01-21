@@ -125,9 +125,14 @@ export async function streamAIResponse(
 // Helper to extract text content from a UI message
 function extractTextFromMessage(message: UIMessage | undefined): string {
 	if (!message) return "";
-	// UIMessage parts contain the actual content
-	const textPart = message.parts.find((part) => part.type === "text");
-	return textPart?.type === "text" ? textPart.text : "";
+	// UIMessage parts contain the actual content, fallback to content field if present
+	if (message.parts && message.parts.length > 0) {
+		const textPart = message.parts.find((part) => part.type === "text");
+		if (textPart?.type === "text") return textPart.text;
+	}
+	// Fallback: check for content field (may exist on validated messages)
+	const content = (message as unknown as { content?: string }).content;
+	return content || "";
 }
 
 export async function saveChatMessage(
