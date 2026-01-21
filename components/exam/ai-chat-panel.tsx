@@ -32,6 +32,7 @@ export function AIChatPanel({
 	sectionContext,
 }: AIChatPanelProps) {
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLTextAreaElement>(null);
 
 	const questionContext = {
 		questionNumber: question.questionNumber,
@@ -73,6 +74,13 @@ export function AIChatPanel({
 				scrollContainerRef.current.scrollHeight;
 		}
 	}, [messages]);
+
+	// Refocus input after message is sent
+	useEffect(() => {
+		if (!isLoading && inputRef.current) {
+			inputRef.current.focus();
+		}
+	}, [isLoading]);
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		if (e.key === "Enter" && !e.shiftKey) {
@@ -182,6 +190,7 @@ export function AIChatPanel({
 			<form onSubmit={handleSubmit} className="p-3 border-t shrink-0">
 				<div className="flex gap-2">
 					<Textarea
+						ref={inputRef}
 						value={input}
 						onChange={(e) => setInput(e.target.value)}
 						onKeyDown={handleKeyDown}
