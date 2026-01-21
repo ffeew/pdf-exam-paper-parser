@@ -3,6 +3,7 @@
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useEffect, useCallback, useState, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { AIModel, QuestionContext } from "@/app/api/ai/ask/validator";
 import { useChatHistory, useClearChat } from "./use-chat-history";
 
@@ -20,6 +21,7 @@ export function useAIChat({
 	questionNumber,
 	questionContext,
 }: UseAIChatOptions) {
+	const queryClient = useQueryClient();
 	const [selectedModel, setSelectedModel] = useState<AIModel>("kimi-k2");
 	const [input, setInput] = useState("");
 	// Track which question we've loaded messages for
@@ -57,6 +59,12 @@ export function useAIChat({
 	const { messages, status, sendMessage, setMessages, stop } = useChat({
 		id: chatId,
 		transport,
+		onFinish: () => {
+			// Invalidate cache to sync persisted messages with DB
+			queryClient.invalidateQueries({
+				queryKey: ["chat-history", examId, questionNumber],
+			});
+		},
 	});
 
 	// Clear messages and update expected question when question changes
