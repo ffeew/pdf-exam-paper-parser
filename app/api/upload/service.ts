@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { after } from "next/server";
 import { eq, and, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { exams } from "@/lib/db/schema";
@@ -104,27 +105,31 @@ export async function confirmUploadAndCreateExam(
     updatedAt: now,
   });
 
-  // Trigger async processing (fire-and-forget with status update on failure)
-  processExamAsync(examId, data.fileKey).catch(async (error) => {
-    console.error(`Failed to start processing for exam ${examId}:`, error);
-    // Update exam status to failed so user knows something went wrong
+  // Use after() to keep the serverless function alive for background processing
+  // This fixes the issue where Vercel terminates the function before processing completes
+  after(async () => {
     try {
-      await db
-        .update(exams)
-        .set({
-          status: "failed",
-          errorMessage:
-            error instanceof Error
-              ? error.message
-              : "Failed to start processing",
-          updatedAt: new Date(),
-        })
-        .where(eq(exams.id, examId));
-    } catch (updateError) {
-      console.error(
-        `Failed to update exam ${examId} status to failed:`,
-        updateError
-      );
+      await processExamAsync(examId, data.fileKey);
+    } catch (error) {
+      console.error(`Failed to process exam ${examId}:`, error);
+      try {
+        await db
+          .update(exams)
+          .set({
+            status: "failed",
+            errorMessage:
+              error instanceof Error
+                ? error.message
+                : "Processing failed",
+            updatedAt: new Date(),
+          })
+          .where(eq(exams.id, examId));
+      } catch (updateError) {
+        console.error(
+          `Failed to update exam ${examId} status to failed:`,
+          updateError
+        );
+      }
     }
   });
 
